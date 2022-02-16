@@ -177,3 +177,5 @@ if __name__ == '__main__':
     else:
         for prot in to_be_processed:
             write_annot_npz(prot, prot2seq=prot2seq, out_dir=out_dir)
+
+

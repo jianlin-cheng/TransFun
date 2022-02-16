@@ -33,7 +33,6 @@ def read_fasta(fn_fasta):
         '''
     aa = set(['R', 'X', 'S', 'G', 'W', 'I', 'Q', 'A', 'T', 'V', 'K', 'Y', 'C', 'N', 'L', 'F', 'D', 'M', 'P', 'H', 'E'])
     prot2seq = {}
-    prot2seq2 = {}
     if fn_fasta.endswith('gz'):
         handle = gzip.open(fn_fasta, "rt")
     else:
@@ -44,15 +43,10 @@ def read_fasta(fn_fasta):
         prot = record.id
         pdb, chain = prot.split('_') if '_' in prot else prot.split('-')
         prot = pdb.upper() + '-' + chain
-        # if len(seq) >= 60 and len(seq) <= 1000:
-        if len(seq) >= 20 and len(seq) <= 1000:
+        if len(seq) >= 60 and len(seq) <= 1000:
             if len((set(seq).difference(aa))) == 0:
                 prot2seq[prot] = seq
-            else:
-                prot2seq2[prot] = seq
-        else:
-            prot2seq2[prot] = seq
-    return prot2seq, prot2seq2
+    return prot2seq
 
 
 def write_prot_list(protein_list, filename):
@@ -175,7 +169,7 @@ def read_sifts(fname, chains, go_graph):
     return pdb2go, go2info
 
 
-def write_output_files(fname, pdb2go, go2info, pdb2seq, pdb2seq2):
+def write_output_files(fname, pdb2go, go2info, pdb2seq):
     # select goterms (> 49, < 5000)
     onts = ['molecular_function', 'biological_process', 'cellular_component']
     selected_goterms = {ont: set() for ont in onts}
@@ -228,20 +222,11 @@ def write_output_files(fname, pdb2go, go2info, pdb2seq, pdb2seq2):
                 bp_goterms = goterms.intersection(set(selected_goterms_list[onts[1]]))
                 cc_goterms = goterms.intersection(set(selected_goterms_list[onts[2]]))
                 if len(mf_goterms) > 0 or len(bp_goterms) > 0 or len(cc_goterms) > 0:
-                    try:
+                    if chain in pdb2seq:
                         sequences_list.append(SeqRecord(Seq(pdb2seq[chain], generic_protein), id=chain, description="nrPDB"))
                         protein_list.append(chain)
                         tsv_writer.writerow([chain, ','.join(mf_goterms), ','.join(bp_goterms), ','.join(cc_goterms)])
-                    except KeyError:
-                        aa = set(['R', 'X', 'S', 'G', 'W', 'I', 'Q', 'A', 'T', 'V', 'K', 'Y', 'C', 'N', 'L', 'F', 'D', 'M', 'P', 'H', 'E'])
-                        # if(len(set(pdb2seq2[chain]).difference(aa)) != 0 ):
-                        #     print(set(pdb2seq2[chain]).difference(aa), len(set(pdb2seq2[chain]).difference(aa)))
-                        #     print(pdb2seq2[chain])
-                        #     print(chain, len(pdb2seq2[chain]))
-                        #     print("###################################################################")
-                        #     print("")
-                        #     print("")
-                        #     print("")
+
 
     np.random.seed(1234)
     np.random.shuffle(protein_list)
@@ -290,40 +275,47 @@ def write_output_files(fname, pdb2go, go2info, pdb2seq, pdb2seq2):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-sifts', type=str, default='./data/pdb_chain_go.tsv.gz', help="SIFTS annotation files.")
-    parser.add_argument('-bc', type=str, default='./data/bc-95.out', help="Blastclust of PDB chains.")
-    parser.add_argument('-seqres', type=str, default='./data/pdb_seqres.txt.gz', help="PDB chain seqres fasta.")
-    parser.add_argument('-obo', type=str, default='./data/go-basic.obo', help="Gene Ontology hierarchy.")
-    parser.add_argument('-out', type=str, default='./data/nrPDB-GO_2021.01.23', help="Output filename prefix.")
+    parser.add_argument('-sifts', type=str, default='../../TransFunData/data/pdb_chain_go.tsv.gz', help="SIFTS annotation files.")
+    parser.add_argument('-bc', type=str, default='../../TransFunData/data/bc-95.out', help="Blastclust of PDB chains.")
+    parser.add_argument('-seqres', type=str, default='../../TransFunData/data/pdb_seqres.txt.gz', help="PDB chain seqres fasta.")
+    parser.add_argument('-obo', type=str, default='../../TransFunData/data/go-basic.obo', help="Gene Ontology hierarchy.")
+    parser.add_argument('-out', type=str, default='../../TransFunData/data/nrPDB-GO_2021.01.23', help="Output filename prefix.")
     args = parser.parse_args()
 
     annoted_chains = load_pdbs(args.sifts)
     #
     import pickle
+
     # with open('filename.pickle', 'wb') as handle:
     #     pickle.dump(annoted_chains, handle, protocol=pickle.HIGHEST_PROTOCOL)
     # exit()
     # with open('filename.pickle', 'rb') as handle:
     #     annoted_chains = pickle.load(handle)
 
-    # pdb2clust = load_clusters(args.bc)
-    pdb2seq, pdb2seq2 = read_fasta(args.seqres)
-    # nr_chains = nr_set(annoted_chains, pdb2clust)
-    # go_graph = load_go_graph(args.obo)
-    # pdb2go, go2info = read_sifts(args.sifts, nr_chains, go_graph)
+    pdb2clust = load_clusters(args.bc)
+    pdb2seq = read_fasta(args.seqres)
+    for i in pdb2seq:
+        f = open("/data/fasta_files/{}.fasta".format(i), "a")
+        f.write(">" + i + "\n" + pdb2seq[i] + "\n")
+        f.close()
+
+    exit()
+    nr_chains = nr_set(annoted_chains, pdb2clust)
+    go_graph = load_go_graph(args.obo)
+    pdb2go, go2info = read_sifts(args.sifts, nr_chains, go_graph)
 
     # print(type(pdb2go))
     # print(type(go2info))
-    # with open('pdb2go.pickle', 'wb') as handle:
-    #     pickle.dump(pdb2go, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('pdb2go.pickle', 'wb') as handle:
+        pickle.dump(pdb2go, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     with open('pdb2go.pickle', 'rb') as handle:
         pdb2go = pickle.load(handle)
-
-    # with open('go2info.pickle', 'wb') as handle:
-    #     pickle.dump(go2info, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    with open('go2info.pickle', 'rb') as handle:
-        go2info = pickle.load(handle)
-
-    write_output_files(args.out, pdb2go, go2info, pdb2seq, pdb2seq2)
+    #
+    # # with open('go2info.pickle', 'wb') as handle:
+    # #     pickle.dump(go2info, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    #
+    # with open('go2info.pickle', 'rb') as handle:
+    #     go2info = pickle.load(handle)
+    #
+    write_output_files(args.out, pdb2go, go2info, pdb2seq)
