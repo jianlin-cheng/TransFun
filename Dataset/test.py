@@ -36,7 +36,7 @@ num_train = int(num_examples * 0.8)
 train_sampler = SubsetRandomSampler(torch.arange(num_train))
 
 train_dataloader = GraphDataLoader(
-    dataset, sampler=train_sampler, batch_size=2, drop_last=False)
+    dataset, sampler=train_sampler, batch_size=1, drop_last=False)
 
 
 for i in train_dataloader:

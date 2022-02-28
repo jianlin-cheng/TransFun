@@ -1,31 +1,43 @@
+import math
+
+import torch
 from biopandas.pdb import PandasPdb
-import Bio
 from typing import Tuple
 import dgl
 import numpy as np
-from graph import prot_df_to_dgl_graph_feats
+from graph import prot_df_to_dgl_graph_feats_knn, prot_df_to_dgl_graph_feats_distance
 
-PROT_ATOM_NAMES = ['N', 'CA', 'C', 'O', 'CB', 'OG', 'CG', 'CD1', 'CD2', 'CE1', 'CE2',
+PROT_ATOM_NAMES = ['CA', 'N', 'C', 'O', 'CB', 'OG', 'CG', 'CD1', 'CD2', 'CE1', 'CE2',
                    'CZ', 'OD1', 'ND2', 'CG1', 'CG2', 'CD', 'CE', 'NZ', 'OD2',
                    'OE1', 'NE2', 'OE2', 'OH', 'NE', 'NH1', 'NH2', 'OG1', 'SD',
                    'ND1', 'SG', 'NE1', 'CE3', 'CZ2', 'CZ3', 'CH2', 'OXT', 'UNX']  # 'UNX' represents unknown atom type
-ALLOWABLE_FEATS = [PROT_ATOM_NAMES, ]
+ALLOWABLE_FEATS = [PROT_ATOM_NAMES[:1], ]
 
 
 class GraphTransform(object):
     def __init__(self):
         super(GraphTransform, self).__init__()
 
-
     def __call__(self, item):
         pandas_pdb = item['pdb_to_pandas']
-        sequence = item['sequence']
-        data = convert_dfs_to_dgl_graph(pandas_pdb, 10, sequence)
+        chain_id = item['chain_id']
+        edge_metric = item['metric']
+        data = convert_dfs_to_dgl_graph(pandas_pdb, chain_id, edge_metric)
 
-        return {"graph":data, "label": item["label"]}
+        return {"graph": data, "label": item["label"], "Protein": item['protein_id']}
 
 
-def convert_dfs_to_dgl_graph(pdb: PandasPdb, knn: int, sequence: Bio.Seq.Seq) -> \
+def get_knn(**kwargs):
+    mode = kwargs["mode"]
+    seq_length = kwargs["sequence_length"]
+    if mode == "sqrt":
+        x = int(math.sqrt(seq_length))
+        if x % 2 == 0:
+            return x + 1
+        return x
+
+
+def convert_dfs_to_dgl_graph(input_pdb: PandasPdb, chain_id, metric='knn') -> \
         Tuple[dgl.DGLGraph, np.ndarray]:
     r""" Transform a given set of predicted and true atom DataFrames into a corresponding DGL graph.
 
@@ -42,20 +54,37 @@ def convert_dfs_to_dgl_graph(pdb: PandasPdb, knn: int, sequence: Bio.Seq.Seq) ->
         Index 2. Sequence Encoding.
     """
 
-    pdb_df = pdb.df['ATOM']
-    # Construct KNN graph
-    graph, node_coords, atoms_types, normalized_chain_ids= prot_df_to_dgl_graph_feats(
-        pdb_df, ALLOWABLE_FEATS, knn + 1, sequence
-    )
-    # Remove self-loops in graph
-    # graph = dgl.remove_self_loop(graph)  # By removing self-loops w/ k=11, we are effectively left w/ edges for k=10
+    pdb_df = input_pdb.df['ATOM']
+    pdb_df = pdb_df[(pdb_df['atom_name'] == 'CA') & (pdb_df['chain_id'] == chain_id)]
 
-    graph.ndata['atom_type'] = atoms_types  # [num_nodes, num_node_feats=38]
+    pdb_df = pdb_df.drop_duplicates()
+    residue_name = pdb_df['residue_name'].to_list()
+
+    one_letter = input_pdb.amino3to1()
+    one_letter = one_letter[(one_letter['chain_id'] == chain_id)]
+    sequence = one_letter['residue_name'].to_list()
+
+    assert(len(residue_name) == len(sequence))
+
+    if metric == "knn":
+        kwargs = {'mode': 'sqrt', 'sequence_length': len(sequence), 'metric': metric}
+        knn = get_knn(**kwargs)
+        # Construct KNN graph
+        graph = prot_df_to_dgl_graph_feats_knn(pdb_df, knn, sequence)
+
+    elif metric == "distance":
+        threshold = 0.6
+        graph = prot_df_to_dgl_graph_feats_distance(pdb_df, threshold, sequence)
+
+
+
+    # graph.ndata['atom_type'] = atoms_types  # [num_nodes, num_node_feats=38]
     # Include normalized scalar feature indicating each atom's chain ID
-    graph.ndata['chain_id'] = normalized_chain_ids  # [num_nodes, num_node_feats=1]
+    # graph.ndata['chain_id'] = normalized_chain_ids  # [num_nodes, num_node_feats=1]
     # Cartesian coordinates for each atom
-    graph.ndata['node_cordinates'] = node_coords  # [num_nodes, 3]
-    return graph# , sequence_features
+    # graph.ndata['node_cordinates'] = node_coords  # [num_nodes, 3]
+
+    return graph
 
 
 # def voxel_transform(item, grid_config, rot_mat=None, center_fn=vox.get_center, random_seed=None, structure_keys=['atoms']):

@@ -5,8 +5,6 @@ import esm
 model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
 batch_converter = alphabet.get_batch_converter()
 
-exit()
-
 # Prepare data (first 2 sequences from ESMStructuralSplitDataset superfamily / 4)
 data = [
     ("protein1", "MKTVRQERLKSIVRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNIVATPRGYVLAGG"),
@@ -15,9 +13,6 @@ data = [
     ("protein3",  "K A <mask> I S Q"),
 ]
 batch_labels, batch_strs, batch_tokens = batch_converter(data)
-
-print(batch_labels)
-exit()
 
 # Extract per-residue representations (on CPU)
 with torch.no_grad():

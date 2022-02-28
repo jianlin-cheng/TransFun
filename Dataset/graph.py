@@ -1,11 +1,12 @@
+import itertools
 from typing import Tuple, List
 import Bio
 import dgl
+import numpy as np
 import pandas as pd
 import torch
 from itertools import groupby
 import torch.nn.functional as F
-
 
 
 residues = {
@@ -22,7 +23,14 @@ def one_of_k_encoding_unk(feat, allowable_set):
     return list(map(lambda s: feat == s, allowable_set))
 
 
-def prot_df_to_dgl_graph_feats(df: pd.DataFrame, allowable_feats: List[List], knn: int, sequence: Bio.Seq.Seq):
+def distance_metric(node1, node2, metric='Euclidean_norm'):
+    if metric == 'Euclidean':
+        return np.linalg.norm(node1 - node2)
+    elif metric == 'Euclidean_norm':
+        return 1.0 / (np.linalg.norm(node1 - node2) + 1e-5)
+
+
+def prot_df_to_dgl_graph_feats_knn(df: pd.DataFrame, knn: int, sequence: Bio.Seq.Seq):#,  allowable_feats: List[List]):
     r"""Convert protein in DataFrame representation to a graph compatible with DGL, where each node is an atom.
 
     :param df: Protein structure in dataframe format.
@@ -43,15 +51,9 @@ def prot_df_to_dgl_graph_feats(df: pd.DataFrame, allowable_feats: List[List], kn
     :rtype: Tuple
     """
     # Aggregate one-hot encodings of each atom's type to serve as the primary source of node features
-    atom_type_feat_vecs = [one_of_k_encoding_unk(feat, allowable_feats[0]) for feat in df['atom_name']]
-    atoms_types = torch.FloatTensor(atom_type_feat_vecs)
-    assert not torch.isnan(atoms_types).any(), 'Atom types must be valid float values, not NaN'
-
-    # Gather chain IDs to serve as an additional node feature
-    chain_ids = torch.FloatTensor([c for c, (k, g) in enumerate(groupby(df['chain_id'].values.tolist()), 0) for _ in g])
-    max_chain_id = max(max(chain_ids.tolist()), 1.0)  # With max(), account for monomers having only a single chain
-    normalized_chain_ids = (chain_ids / max_chain_id).reshape(-1, 1)
-    assert not torch.isnan(normalized_chain_ids).any(), 'Chain IDs must be valid float values, not NaN'
+    # atom_type_feat_vecs = [one_of_k_encoding_unk(feat, allowable_feats[0]) for feat in df['atom_name']]
+    # atoms_types = torch.FloatTensor(atom_type_feat_vecs)
+    # assert not torch.isnan(atoms_types).any(), 'Atom types must be valid float values, not NaN'
 
     sequence_features = torch.tensor([residues[residue] for residue in sequence])
     sequence_features = F.one_hot(sequence_features, num_classes=len(residues)).to(dtype=torch.float)
@@ -62,5 +64,81 @@ def prot_df_to_dgl_graph_feats(df: pd.DataFrame, allowable_feats: List[List], kn
     # Define edges - KNN argument determines whether an atom-atom edge gets created in the resulting graph
     knn_graph = dgl.knn_graph(node_coords, knn)
 
+    # Remove self-loops in graph
+    graph = dgl.remove_self_loop(knn_graph)  # By removing self-loops w/ k=11, we are effectively left w/ edges for k=10
 
-    return knn_graph, node_coords, atoms_types, normalized_chain_ids# , sequence_features
+    graph.ndata['sequence_features'] = sequence_features
+
+    graph.edata['distance'] = torch.FloatTensor([distance_metric(i, j) for i, j in zip(graph.edges()[0], graph.edges()[1])])
+
+    distance = []
+    adjacent_edges = []
+    for i, j in zip(graph.edges()[0], graph.edges()[1]):
+        distance.append(distance_metric(i, j))
+        assert i != j
+        if abs(i - j) == 1:
+            adjacent_edges.append(1)
+        else:
+            adjacent_edges.append(0)
+
+    graph.edata['adjacent_edges'] = torch.FloatTensor(adjacent_edges)
+
+    return graph #, node_coords, atoms_types
+
+
+def prot_df_to_dgl_graph_feats_distance(df: pd.DataFrame, threshold: int, sequence: Bio.Seq.Seq):
+    r"""Convert protein in DataFrame representation to a graph compatible with DGL, where each node is an atom.
+
+        :param df: Protein structure in dataframe format.
+        :type df: pandas.DataFrame
+        :param allowable_feats: List of lists containing all possible values of node type, to be converted into 1-hot node features.
+            Any elements in ``feat_col`` that are not found in ``allowable_feats`` will be added to an appended "unknown" bin (see :func:`one_of_k_encoding_unk`).
+        :param threshold: maximum distance to consider
+        :type knn: int
+
+        :return: tuple containing
+            -
+        :rtype: Tuple
+        """
+
+    threshold = threshold
+    sequence_features = torch.tensor([residues[residue] for residue in sequence])
+    sequence_features = F.one_hot(sequence_features, num_classes=len(residues)).to(dtype=torch.float)
+
+    df['node'] = np.arange(df.shape[0])
+    node_coords = [tuple(x) for x in df[['node', 'x_coord', 'y_coord', 'z_coord']].to_numpy()]
+
+    # pairwise = list(itertools.combinations(node_coords, 2))
+    # Intentionally using product so that the distance threshold does not filter out nodes that are far away.
+    # Then  I will remove nodes to remove the self edges
+    pairwise = list(itertools.product(node_coords, node_coords))
+
+    # Compute the distance for each node.
+    src_ids = []
+    dst_ids = []
+    distance = []
+    adjacent_edges = []
+    for i, j in pairwise:
+        dist = distance_metric(np.array(i[1:]), np.array(j[1:]), metric='Euclidean')
+        dist1 = distance_metric(np.array(i[1:]), np.array(j[1:]))
+        if dist < threshold:
+            src_ids.append(i[0])
+            dst_ids.append(j[0])
+            # filter out self distance
+            if i[0] != j[0]:
+                distance.append(dist)
+                if abs(i[0] - j[0]) == 1:
+                    adjacent_edges.append(1)
+                else:
+                    adjacent_edges.append(0)
+
+    graph = dgl.graph((src_ids, dst_ids))
+
+    # Remove self-loops in graph
+    graph = dgl.remove_self_loop(graph)  # By removing self-loops w/ k=11, we are effectively left w/ edges for k=10
+
+    graph.ndata['sequence_features'] = sequence_features
+    graph.edata['distance'] = torch.FloatTensor(distance)
+    graph.edata['adjacent_edges'] = torch.FloatTensor(adjacent_edges)
+
+    return graph # , node_coords, atoms_types
