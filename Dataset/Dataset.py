@@ -31,17 +31,16 @@ class PDBDataset(Dataset):
             raise IndexError(index)
 
         file_path = self._file_list[index]
+        print(file_path)
 
         # if file_exist thus if list of paths is passed
         pdb_to_pandas = PandasPdb().read_pdb(str(file_path))
-        for record in SeqIO.parse(file_path, "pdb-atom"):
-            sequence = record.seq
-
         item = {
             'pdb_to_pandas': pdb_to_pandas,
-            'id': file_path.name,
+            'protein_id': file_path.name,
             'label': 'label',
-            'sequence': sequence
+            'chain_id': 'A',
+            'metric': 'knn'
         }
         if self._store_file_path:
             item['file_path'] = str(file_path)

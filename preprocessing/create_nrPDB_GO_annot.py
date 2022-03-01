@@ -294,13 +294,16 @@ if __name__ == "__main__":
 
     pdb2clust = load_clusters(args.bc)
     pdb2seq = read_fasta(args.seqres)
-    for i in pdb2seq:
-        f = open("/data/fasta_files/{}.fasta".format(i), "a")
-        f.write(">" + i + "\n" + pdb2seq[i] + "\n")
-        f.close()
+    # for i in pdb2seq:
+    #     f = open("/data/fasta_files/{}.fasta".format(i), "a")
+    #     f.write(">" + i + "\n" + pdb2seq[i] + "\n")
+    #     f.close()
+    #
+    # exit()
+    nr_chains = nr_set(annoted_chains, pdb2clust)
+    print(len(nr_chains))
 
     exit()
-    nr_chains = nr_set(annoted_chains, pdb2clust)
     go_graph = load_go_graph(args.obo)
     pdb2go, go2info = read_sifts(args.sifts, nr_chains, go_graph)
 

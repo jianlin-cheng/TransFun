@@ -6,15 +6,7 @@ import ray
 from biotransformers import BioTransformers
 
 
-def download_msa_database(url, name):
-    database_path = "./msa/hh_suite_database/{}".format(name)
-    if not os.path.isdir(database_path):
-        os.mkdir(database_path)
-        # download database, note downloading a ~1Gb file can take a minute
-        database_file = "{}/{}.tar.gz".format(database_path, name)
-        subprocess.call('wget -O {} {}'.format(database_file, url), shell=True)
-        # unzip the database
-        subprocess.call('tar xzvf {}.tar.gz'.format(name), shell=True, cwd="{}".format(database_path))
+
 '''
     Download some database. 
 '''
@@ -23,15 +15,6 @@ def download_msa_database(url, name):
 # pdb70 = ("http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pdb70_from_mmcif_latest.tar.gz", "pdb70_from_mmcif_latest")
 # download_msa_database(pdb70[0], pdb70[1])
 
-
-def search_database(file, database):
-    base_path = "./msa/{}"
-    output_path = base_path.format("outputs/{}.hhr".format(file))
-    input_path = base_path.format("inputs/{}.fasta".format(file))
-    oa3m_path = base_path.format("oa3ms/{}.03m".format(file))
-    database_path = base_path.format("hh_suite_database/{}/{}".format(database, database))
-    if not os.path.isfile(oa3m_path):
-        subprocess.call('hhblits -i {} -o {} -oa3m {} -d {} -cpu 4 -n 1'.format(input_path, output_path, oa3m_path, database_path), shell=True)
 
 
 test_file = "query"
