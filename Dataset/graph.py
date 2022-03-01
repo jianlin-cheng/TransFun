@@ -1,7 +1,7 @@
 import itertools
 from typing import Tuple, List
 import Bio
-import dgl
+from torch_geometric.transforms import KNNGraph
 import numpy as np
 import pandas as pd
 import torch
@@ -30,7 +30,7 @@ def distance_metric(node1, node2, metric='Euclidean_norm'):
         return 1.0 / (np.linalg.norm(node1 - node2) + 1e-5)
 
 
-def prot_df_to_dgl_graph_feats_knn(df: pd.DataFrame, knn: int, sequence: Bio.Seq.Seq):#,  allowable_feats: List[List]):
+def prot_df_to_graph_feats_knn(df: pd.DataFrame, knn: int, sequence: Bio.Seq.Seq):#,  allowable_feats: List[List]):
     r"""Convert protein in DataFrame representation to a graph compatible with DGL, where each node is an atom.
 
     :param df: Protein structure in dataframe format.
@@ -62,6 +62,7 @@ def prot_df_to_dgl_graph_feats_knn(df: pd.DataFrame, knn: int, sequence: Bio.Seq
     node_coords = torch.tensor(df[['x_coord', 'y_coord', 'z_coord']].values, dtype=torch.float32)
 
     # Define edges - KNN argument determines whether an atom-atom edge gets created in the resulting graph
+    knn_graph = KNNGraph()
     knn_graph = dgl.knn_graph(node_coords, knn)
 
     # Remove self-loops in graph
@@ -86,7 +87,7 @@ def prot_df_to_dgl_graph_feats_knn(df: pd.DataFrame, knn: int, sequence: Bio.Seq
     return graph #, node_coords, atoms_types
 
 
-def prot_df_to_dgl_graph_feats_distance(df: pd.DataFrame, threshold: int, sequence: Bio.Seq.Seq):
+def prot_df_to_graph_feats_distance(df: pd.DataFrame, threshold: int, sequence: Bio.Seq.Seq):
     r"""Convert protein in DataFrame representation to a graph compatible with DGL, where each node is an atom.
 
         :param df: Protein structure in dataframe format.

@@ -2,6 +2,20 @@ import os
 import re
 import subprocess
 from pathlib import Path
+import pickle
+
+# Create a list of input files
+def get_input_data():
+    # test data
+    input = ["1a0b", "1a0c", "1a0d", "1a0e", "1a0f", "1a0g", "1a0h", "1a0i", "1a0j", "1a0l"]
+    raw = [s + ".pdb" for s in input]
+    processed = [s + ".pt" for s in input]
+
+    with open('raw.pickle', 'wb') as handle:
+        pickle.dump(raw, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('proceesed.pickle', 'wb') as handle:
+        pickle.dump(processed, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 patterns = {
@@ -50,3 +64,5 @@ def find_files(path, suffix, relative=None):
     name_list = stdout.decode().split()
     name_list.sort()
     return sorted([Path(x) for x in name_list])
+
+# get_input_data()

@@ -1,9 +1,8 @@
-from pathlib import Path
-import torch
-from dgl.dataloading import GraphDataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
-from Dataset import load_dataset
-from transforms import GraphTransform
+# from pathlib import Path
+# import torch
+# from torch.utils.data.sampler import SubsetRandomSampler
+# from Dataset import load_dataset
+# from transforms import GraphTransform
 
 
 # def process_protein_into_dict():
@@ -27,19 +26,22 @@ from transforms import GraphTransform
 #     print(graph)
 
 
-dataset = load_dataset(str(Path(__file__).parent.absolute()) + '/test_pdb', 'pdb', transform=GraphTransform())
+print("Here")
 
-
-num_examples = len(dataset)
-num_train = int(num_examples * 0.8)
-
-train_sampler = SubsetRandomSampler(torch.arange(num_train))
-
-train_dataloader = GraphDataLoader(
-    dataset, sampler=train_sampler, batch_size=1, drop_last=False)
-
-
-for i in train_dataloader:
-    print(i)
-
-exit()
+# exit()
+# dataset = load_dataset(str(Path(__file__).parent.absolute()) + '/test_pdb', 'pdb', transform=GraphTransform())
+#
+#
+# num_examples = len(dataset)
+# num_train = int(num_examples * 0.8)
+#
+# train_sampler = SubsetRandomSampler(torch.arange(num_train))
+#
+# train_dataloader = GraphDataLoader(
+#     dataset, sampler=train_sampler, batch_size=1, drop_last=False)
+#
+#
+# for i in train_dataloader:
+#     print(i)
+#
+# exit()
