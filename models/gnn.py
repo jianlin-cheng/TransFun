@@ -1,35 +1,52 @@
 import torch
-from torch_geometric.nn import MessagePassing
-from torch_geometric.utils import add_self_loops, degree
+import torch.nn.functional as F
+from torch_geometric.nn import GCNConv, BatchNorm
+from torch.nn import Linear, Softmax, Sigmoid
+from torch_geometric.nn import global_mean_pool
 
 
-class GCNConv(MessagePassing):
-    def __init__(self, in_channels, out_channels):
-        super().__init__(aggr='add')  # "Add" aggregation (Step 5).
-        self.lin = torch.nn.Linear(in_channels, out_channels)
+class GCN(torch.nn.Module):
+    def __init__(self, input_features, hidden_channels_1, hidden_channels_2,
+                 hidden_channels_3, num_classes):
+        super(GCN, self).__init__()
+        print(input_features)
+        # torch.manual_seed(12345)
+        self.conv1 = GCNConv(input_features, hidden_channels_1)
+        self.conv2 = GCNConv(hidden_channels_1, hidden_channels_2)
+        self.conv3 = GCNConv(hidden_channels_2, hidden_channels_3)
+        self.lin = Linear(hidden_channels_3, num_classes)
+        self.bn1 = BatchNorm(hidden_channels_1)
+        self.bn2 = BatchNorm(hidden_channels_2)
+        self.bn3 = BatchNorm(hidden_channels_3)
+        self.softmax = Softmax(dim=0)
+        self.sigm = Sigmoid()
 
-    def forward(self, x, edge_index):
-        # x has shape [N, in_channels]
-        # edge_index has shape [2, E]
+        self.fc1 = torch.nn.Linear(1280, hidden_channels_3)
 
-        # Step 1: Add self-loops to the adjacency matrix.
-        edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
+    def forward(self, data):
+        # 1. Obtain node embeddings
+        x, edge_index = data.embedding_features_per_residue, data.edge_index
 
-        # Step 2: Linearly transform node feature matrix.
+        x = self.bn1(F.relu(self.conv1(x, edge_index)))
+        x = self.bn2(F.relu(self.conv2(x, edge_index)))
+        x = self.bn3(self.conv3(x, edge_index))
+
+        # x = self.conv1(x, edge_index)
+        # x = x.relu()
+        # x = self.conv2(x, edge_index)
+        # x = x.relu()
+        # x = self.conv3(x, edge_index)
+
+        # 2. Readout layer
+        x = global_mean_pool(x, data.batch)  # [batch_size, hidden_channels]
+        print(data.embedding_features_per_sequence.shape)
+        y = self.fc1 (data.embedding_features_per_sequence)
+        print(y.shape)
+        x += y
+
+        # 3. Apply a final classifier
+        x = F.dropout(x, p=0.2, training=self.training)
         x = self.lin(x)
+        x = self.sigm(x)
 
-        # Step 3: Compute normalization.
-        row, col = edge_index
-        deg = degree(col, x.size(0), dtype=x.dtype)
-        deg_inv_sqrt = deg.pow(-0.5)
-        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
-
-        # Step 4-5: Start propagating messages.
-        return self.propagate(edge_index, x=x, norm=norm)
-
-    def message(self, x_j, norm):
-        # x_j has shape [E, out_channels]
-
-        # Step 4: Normalize node features.
-        return norm.view(-1, 1) * x_j
+        return x
