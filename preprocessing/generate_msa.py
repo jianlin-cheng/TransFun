@@ -1,21 +1,14 @@
-import os
+import os, subprocess
 from typing import Any, Mapping, MutableMapping, Optional, Sequence, Union
 from absl import logging
 from tools import jackhmmer, parsers, residue_constants, msa_identifiers, hhblits
 import numpy as np
 import shutil
 from absl import app
+from absl import logging
 import multiprocessing
 from glob import glob
-import os, subprocess
-
-jackhmmer_binary_path = shutil.which('jackhmmer')
-hhblits_binary_path = shutil.which('hhblits')
-uniref90_database_path = "/storage/htc/bdm/tools/alphafold/database/uniref90/uniref90.fasta"
-mgnify_database_path = "/storage/htc/bdm/tools/alphafold/database/mgnify/mgy_clusters.fa"
-small_bfd_database_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
-uniclust30_database_path = "/storage/htc/bdm/tools/alphafold/database/uniclust30/uniclust30_2018_08/uniclust30_2018_08"
-bfd_database_path = "/storage/htc/bdm/tools/alphafold/database/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq"
+import sys
 
 jackhmmer_binary_path = shutil.which('jackhmmer')
 uniref90_database_path = "/data/pycharm/Genetic_Databases/uniref90/uniref90.fasta"
@@ -23,8 +16,6 @@ mgnify_database_path = "/data/pycharm/Genetic_Databases/mgnify/mgy_clusters_2018
 small_bfd_database_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
 hhblits_binary_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
 uniclust30_database_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
-
-
 
 
 FeatureDict = MutableMapping[str, np.ndarray]
@@ -78,7 +69,7 @@ def run_msa_tool(msa_runner, input_fasta_path: str, msa_out_path: str, msa_forma
     with open(msa_out_path, 'w') as f:
       f.write(result[msa_format])
   else:
-    logging.warning('Reading MSA from file %s', msa_out_path)
+    logging.error('Reading MSA from file %s', msa_out_path)
     with open(msa_out_path, 'r') as f:
       result = {msa_format: f.read()}
   return result
@@ -91,9 +82,9 @@ class DataPipeline:
 
     self.jackhmmer_uniref90_runner = jackhmmer.Jackhmmer(binary_path=jackhmmer_binary_path, database_path=uniref90_database_path)
 
-    self.jackhmmer_small_bfd_runner = jackhmmer.Jackhmmer(binary_path=jackhmmer_binary_path, database_path=small_bfd_database_path)
+    #self.jackhmmer_small_bfd_runner = jackhmmer.Jackhmmer(binary_path=jackhmmer_binary_path, database_path=small_bfd_database_path)
 
-    # self.hhblits_bfd_uniclust_runner = hhblits.HHBlits( binary_path=hhblits_binary_path, databases=[bfd_database_path, uniclust30_database_path])
+    self.hhblits_bfd_uniclust_runner = hhblits.HHBlits( binary_path=hhblits_binary_path, databases=[bfd_database_path, uniclust30_database_path])
 
     self.jackhmmer_mgnify_runner = jackhmmer.Jackhmmer(binary_path=jackhmmer_binary_path, database_path=mgnify_database_path)
 
@@ -124,64 +115,67 @@ class DataPipeline:
     else:
         uniref90_out_path = os.path.join(msa_output_dir, 'uniref90_hits.sto')
         if not os.path.isfile(uniref90_out_path):
-            print("Generating msa for {} from {}".format(protein, "uniref90"))
+            logging.error("Generating msa for {} from {}".format(protein, "uniref90"))
             jackhmmer_uniref90_result = run_msa_tool(self.jackhmmer_uniref90_runner, input_fasta_path, uniref90_out_path, 'sto', self.use_precomputed_msas, base_path=base_path)
             uniref90_msa = parsers.parse_stockholm(jackhmmer_uniref90_result['sto'])
             uniref90_msa = uniref90_msa.truncate(max_seqs=self.uniref_max_hits)
         else:
-            if combine:
-                print("Loading msa for {} from {} @ {}".format(protein, "uniref90", uniref90_out_path))
+            if combine and not os.path.isfile(combined_out_path):
+                logging.error("Loading msa for {} from {} @ {}".format(protein, "uniref90", uniref90_out_path))
                 with open(uniref90_out_path, 'r') as f:
                     jackhmmer_uniref90_result = {'sto': f.read()}
                 uniref90_msa = parsers.parse_stockholm(jackhmmer_uniref90_result['sto'])
                 uniref90_msa = uniref90_msa.truncate(max_seqs=self.uniref_max_hits)
+
         mgnify_out_path = os.path.join(msa_output_dir, 'mgnify_hits.sto')
         if not os.path.isfile(mgnify_out_path):
-            print("Generating msa for {} from {}".format(protein, "mgnify"))
+            logging.error("Generating msa for {} from {}".format(protein, "mgnify"))
             jackhmmer_mgnify_result = run_msa_tool(self.jackhmmer_mgnify_runner, input_fasta_path, mgnify_out_path, 'sto', self.use_precomputed_msas, base_path=base_path)
             mgnify_msa = parsers.parse_stockholm(jackhmmer_mgnify_result['sto'])
             mgnify_msa = mgnify_msa.truncate(max_seqs=self.mgnify_max_hits)
         else:
-            if combine:
-                print("Loading msa for {} from {} @ {}".format(protein, "mgnify", mgnify_out_path))
+            if combine and not os.path.isfile(combined_out_path):
+                logging.error("Loading msa for {} from {} @ {}".format(protein, "mgnify", mgnify_out_path))
                 with open(mgnify_out_path, 'r') as f:
                     jackhmmer_mgnify_result = {'sto': f.read()}
                 mgnify_msa = parsers.parse_stockholm(jackhmmer_mgnify_result['sto'])
                 mgnify_msa = mgnify_msa.truncate(max_seqs=self.mgnify_max_hits)
 
-        # bfd_out_path = os.path.join(msa_output_dir, 'bfd_uniclust_hits.a3m')
-        bfd_out_path = os.path.join(msa_output_dir, 'small_bfd_hits.sto')
+        bfd_out_path = os.path.join(msa_output_dir, 'bfd_uniclust_hits.a3m')
         if not os.path.isfile(bfd_out_path):
-            print("Generating msa for {} from {}".format(protein, "Bfd"))
-            # hhblits_bfd_uniclust_result = run_msa_tool(self.hhblits_bfd_uniclust_runner, input_fasta_path, bfd_out_path, 'a3m', self.use_precomputed_msas, base_path=base_path)
-            # bfd_msa = parsers.parse_a3m(hhblits_bfd_uniclust_result['a3m'])
-            jackhmmer_small_bfd_result = run_msa_tool(self.jackhmmer_small_bfd_runner, input_fasta_path, bfd_out_path, 'sto', self.use_precomputed_msas, base_path=base_path)
-            bfd_msa = parsers.parse_stockholm(jackhmmer_small_bfd_result['sto'])
+            logging.error("Generating msa for {} from {}".format(protein, "Bfd"))
+            hhblits_bfd_uniclust_result = run_msa_tool(self.hhblits_bfd_uniclust_runner, input_fasta_path, bfd_out_path, 'a3m', self.use_precomputed_msas, base_path=base_path)
+            bfd_msa = parsers.parse_a3m(hhblits_bfd_uniclust_result['a3m'])
+            # jackhmmer_small_bfd_result = run_msa_tool(self.jackhmmer_small_bfd_runner, input_fasta_path, bfd_out_path, 'sto', self.use_precomputed_msas, base_path=base_path)
+            # bfd_msa = parsers.parse_stockholm(jackhmmer_small_bfd_result['sto'])
         else:
-            if combine:
-                print("Loading msa for {} from {} @ {}".format(protein, "small_bfd", bfd_out_path))
+            if combine and not os.path.isfile(combined_out_path):
+                logging.error("Loading msa for {} from {} @ {}".format(protein, "small_bfd", bfd_out_path))
                 with open(bfd_out_path, 'r') as f:
-                #     hhblits_small_bfd_result = {'a3m': f.read()}
-                # bfd_msa = parsers.parse_stockholm(hhblits_small_bfd_result['a3m'])
-                    jackhmmer_small_bfd_result = {'sto': f.read()}
-                bfd_msa = parsers.parse_stockholm(jackhmmer_small_bfd_result['sto'])
+                    hhblits_small_bfd_result = {'a3m': f.read()}
+                bfd_msa = parsers.parse_stockholm(hhblits_small_bfd_result['a3m'])
+                #     jackhmmer_small_bfd_result = {'sto': f.read()}
+                # bfd_msa = parsers.parse_stockholm(jackhmmer_small_bfd_result['sto'])
 
 
         msa_features = make_msa_features((uniref90_msa, bfd_msa, mgnify_msa), combined_out_path=combined_out_path)
+
     if make_diverse:
-        subprocess.call(
-            'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(64), 64), shell=True)
+        if not os.path.isfile(diverse_out_path.format(64)):
+            subprocess.call(
+                'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(64), 64), shell=True)
 
-        subprocess.call(
-            'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(128), 128), shell=True)
+        if not os.path.isfile(diverse_out_path.format(128)):
+            subprocess.call(
+                'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(128), 128), shell=True)
 
-        subprocess.call(
-            'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(256), 256), shell=True)
+        if not os.path.isfile(diverse_out_path.format(256)):
+            subprocess.call(
+                'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(256), 256), shell=True)
 
-        subprocess.call(
-            'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(512), 512), shell=True)
-
-
+        if not os.path.isfile(diverse_out_path.format(512)):
+            subprocess.call(
+                'hhfilter -i {} -o {} -diff {}'.format(combined_out_path, diverse_out_path.format(512), 512), shell=True)
 
     # logging.info('Uniref90 MSA size: %d sequences.', len(uniref90_msa))
     # logging.info('BFD MSA size: %d sequences.', len(bfd_msa))
@@ -191,27 +185,20 @@ class DataPipeline:
 
 
 def run_main(directory):
-    pipeline = DataPipeline(jackhmmer_binary_path, hhblits_binary_path, uniref90_database_path, mgnify_database_path, small_bfd_database_path, uniclust30_database_path, "bfd_database_path")
+    pipeline = DataPipeline(jackhmmer_binary_path, hhblits_binary_path, uniref90_database_path, mgnify_database_path, small_bfd_database_path, uniclust30_database_path, bfd_database_path)
     base_path = base+"{}".format(directory)
-    print("Generating for protein {}".format(directory))
+    logging.info("Generating for protein {}".format(directory))
     input_path = base_path+"/{}.fasta".format(directory)
     output_path = base_path+"/msas"
-    print(output_path)
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     pipeline.process(input_fasta_path=input_path, msa_output_dir=output_path, base_path=base_path, protein=directory, combine=True, make_diverse=True)
 
 
-base = "/data/0/"
+base = "/storage/htc/bdm/Frimpong/TransFun/msa_files/two/{}/".format(sys.argv[1])
 directories = [x for x in os.listdir(base)]
-for i in directories:
-    print("hi")
-    print(run_main(i))
-    exit()
 
-
-
-
-pool = multiprocessing.Pool(1)
+logging.info("Started")
+pool = multiprocessing.Pool(4)
 pool.map(run_main, directories)
 pool.close()

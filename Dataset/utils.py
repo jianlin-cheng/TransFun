@@ -1,20 +1,26 @@
+import math
 import os
 import re
 import subprocess
 from pathlib import Path
 import pickle
+import torch
+from biopandas.pdb import PandasPdb
+import torch.nn.functional as F
 
-# Create a list of input files
+from Constants import residues, amino_acids
+
+
 def get_input_data():
     # test data
     input = ["1a0b", "1a0c", "1a0d", "1a0e", "1a0f", "1a0g", "1a0h", "1a0i", "1a0j", "1a0l"]
     raw = [s + ".pdb" for s in input]
     processed = [s + ".pt" for s in input]
 
-    with open('raw.pickle', 'wb') as handle:
+    with open('../Dataset/raw.pickle', 'wb') as handle:
         pickle.dump(raw, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    with open('proceesed.pickle', 'wb') as handle:
+    with open('../Dataset/proceesed.pickle', 'wb') as handle:
         pickle.dump(processed, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -39,7 +45,7 @@ def is_type(f, filetype):
         return re.compile(filetype + r'$').search(str(f))
 
 
-def find_files(path, suffix, relative=None):
+def find_files(path, suffix, relative=None, type="Path"):
     """
     Find all files in path with given suffix. =
 
@@ -63,6 +69,43 @@ def find_files(path, suffix, relative=None):
     (stdout, stderr) = out.communicate()
     name_list = stdout.decode().split()
     name_list.sort()
-    return sorted([Path(x) for x in name_list])
+    if type == "Path":
+        return sorted([Path(x) for x in name_list])
+    elif type == "Name":
+        return sorted([Path(x).name for x in name_list])
 
-# get_input_data()
+
+def process_pdbpandas(raw_path, chain_id):
+    pdb_to_pandas = PandasPdb().read_pdb(raw_path)
+
+    pdb_df = pdb_to_pandas.df['ATOM']
+    assert (len(set(pdb_df['chain_id'])) == 1) & (list(set(pdb_df['chain_id']))[0] == chain_id)
+
+    pdb_df = pdb_df[(pdb_df['atom_name'] == 'CA') & (pdb_df['chain_id'] == chain_id)]
+    pdb_df = pdb_df.drop_duplicates()
+
+    _residues = pdb_df['residue_name'].to_list()
+    _residues = [amino_acids[i] for i in _residues if i != "UNK"]
+
+    sequence_features = torch.tensor([residues[residue] for residue in _residues])
+    sequence_features = F.one_hot(sequence_features, num_classes=len(residues)).to(dtype=torch.float)
+
+    node_coords = torch.tensor(pdb_df[['x_coord', 'y_coord', 'z_coord']].values, dtype=torch.float32)
+
+    return node_coords, sequence_features, ''.join(_residues)
+
+
+
+    return residues
+
+
+def get_knn(**kwargs):
+    mode = kwargs["mode"]
+    seq_length = kwargs["sequence_length"]
+    if mode == "sqrt":
+        x = int(math.sqrt(seq_length))
+        if x % 2 == 0:
+            return x + 1
+        return x
+    else:
+        return seq_length
