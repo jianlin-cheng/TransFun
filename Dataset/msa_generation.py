@@ -19,15 +19,21 @@ with torch.no_grad():
     results = model(batch_tokens, repr_layers=[33], return_contacts=True)
 token_representations = results["representations"][33]
 
+print(token_representations.shape)
+
 # Generate per-sequence representations via averaging
 # NOTE: token 0 is always a beginning-of-sequence token, so the first residue is token 1.
 sequence_representations = []
 for i, (_, seq) in enumerate(data):
     sequence_representations.append(token_representations[i, 1 : len(seq) + 1].mean(0))
 
+
+for i in sequence_representations:
+    print(i.shape)
+
 # Look at the unsupervised self-attention map contact predictions
-import matplotlib.pyplot as plt
-for (_, seq), attention_contacts in zip(data, results["contacts"]):
-    plt.matshow(attention_contacts[: len(seq), : len(seq)])
-    plt.title(seq)
-    plt.show()
+# import matplotlib.pyplot as plt
+# for (_, seq), attention_contacts in zip(data, results["contacts"]):
+#     plt.matshow(attention_contacts[: len(seq), : len(seq)])
+#     plt.title(seq)
+#     plt.show()
