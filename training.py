@@ -49,7 +49,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 kwargs = {
-    'seq_id': 0.95,
+    'seq_id': 0.3,
     'ont': 'molecular_function',
     'session': 'train'
 }
@@ -85,8 +85,8 @@ kwargs = {
     'ont': 'molecular_function',
     'session': 'valid'
 }
-# val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-# valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False)
+val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
+valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False)
 
 
 # print(f'Dataset: {dataset}:')
