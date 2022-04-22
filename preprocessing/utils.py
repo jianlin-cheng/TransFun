@@ -3,6 +3,9 @@ import os, subprocess
 import pandas as pd
 from Bio import SeqIO
 import pickle
+
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 from biopandas.pdb import PandasPdb
 from collections import deque, Counter
 import csv
@@ -28,6 +31,10 @@ def read_dictionary(file):
     return d
 
 
+def create_seqrecord(id="", name="", description="", seq=""):
+    record = SeqRecord(Seq(seq), id=id, name=name, description=description)
+    return record
+
 
 # Count the number of protein sequences in a fasta file with biopython -- slower.
 def count_proteins_biopython(fasta_file):
@@ -35,10 +42,19 @@ def count_proteins_biopython(fasta_file):
     return num
 
 
-def fasta_to_dictionary(fasta_file):
+def get_proteins_from_fasta(fasta_file):
+    proteins = list(SeqIO.parse(fasta_file, "fasta"))
+    return proteins
+
+
+def fasta_to_dictionary(fasta_file, identifier='protein_id'):
+    if identifier == 'protein_id':
+        loc = 1
+    elif identifier == 'protein_name':
+        loc = 2
     data = {}
     for seq_record in SeqIO.parse(fasta_file, "fasta"):
-        data[seq_record.id.split("|")[1]] = str(seq_record.seq)
+        data[seq_record.id.split("|")[loc]] = str(seq_record.seq)
     return data
 
 

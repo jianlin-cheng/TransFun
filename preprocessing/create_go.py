@@ -11,7 +11,8 @@ from Bio.SeqRecord import SeqRecord
 
 import Constants
 from preprocessing.utils import pickle_save, pickle_load, get_sequence_from_pdb, fasta_for_msas, \
-    count_proteins_biopython, count_proteins, fasta_for_esm, fasta_to_dictionary, read_dictionary
+    count_proteins_biopython, count_proteins, fasta_for_esm, fasta_to_dictionary, read_dictionary, \
+    get_proteins_from_fasta, create_seqrecord
 
 
 def extract_id(header):
@@ -31,8 +32,8 @@ def compare_sequence(uniprot_fasta_file, save=False):
     mapping = pickle_load(Constants.ROOT + "uniprot/mapping_targets_name")
     cafa_id_mapping_reverse = pickle_load("cafa_id_mapping_reverse")
     for seq_record in SeqIO.parse(uniprot_fasta_file, "fasta"):
-        uniprot_id = cafa_id_mapping_reverse[mapping[seq_record.id]]#.split("'t\'")[1]
-        # uniprot_id = extract_id(seq_record.id)
+        # uniprot_id = cafa_id_mapping_reverse[mapping[seq_record.id]]#.split("'t\'")[1]
+        uniprot_id = extract_id(seq_record.id)
         # print("Uniprot ID is {} and sequence is {}".format(uniprot_id, str(seq_record.seq)))
         # Check if alpha fold predicted structure
         src = os.path.join(Constants.ROOT, "alphafold/AF-{}-F1-model_v2.pdb.gz".format(uniprot_id))
@@ -123,7 +124,7 @@ def generate_go_counts(fname="", go_graph=""):
     df = df[df['EVIDENCE'].isin(Constants.exp_evidence_codes)]
     # df = df[df['ACC'].isin(chains)]
 
-    acc2go = {}
+    protein2go = {}
     go2info = {}
     # for index, row in df.iterrows():
     for line_number, (index, row) in enumerate(df.iterrows()):
@@ -133,21 +134,21 @@ def generate_go_counts(fname="", go_graph=""):
 
         # if (acc in chains) and (go_id in go_graph) and (go_id not in Constants.root_terms):
         if go_id in go_graph:
-            if acc not in acc2go:
-                acc2go[acc] = {'goterms': [go_id], 'evidence': [evidence]}
+            if acc not in protein2go:
+                protein2go[acc] = {'goterms': [go_id], 'evidence': [evidence]}
             namespace = go_graph.nodes[go_id]['namespace']
             go_ids = nx.descendants(go_graph, go_id)
             go_ids.add(go_id)
             go_ids = go_ids.difference(Constants.root_terms)
             for go in go_ids:
-                acc2go[acc]['goterms'].append(go)
-                acc2go[acc]['evidence'].append(evidence)
+                protein2go[acc]['goterms'].append(go)
+                protein2go[acc]['evidence'].append(evidence)
                 name = go_graph.nodes[go]['name']
                 if go not in go2info:
                     go2info[go] = {'ont': namespace, 'goname': name, 'accessions': set([acc])}
                 else:
                     go2info[go]['accessions'].add(acc)
-    return acc2go, go2info
+    return protein2go, go2info
 
 
 def one_line_format(input_file, dir):
@@ -171,18 +172,73 @@ def one_line_format(input_file, dir):
         wr.writerows(result)
 
 
-def cluster_sequence(input_fasta, threshold, proteins=None):
+def get_prot_id_and_prot_name(cafa_proteins):
+    print('Mapping CAFA PROTEINS')
+    cafa_id_mapping = dict()
+    with open(Constants.ROOT + 'uniprot/idmapping_selected.tab') as file:
+        for line in file:
+            _tmp = line.split("\t")[:2]
+            if _tmp[1] in cafa_proteins:
+                cafa_id_mapping[_tmp[1]] = _tmp[0]
+            if len(cafa_id_mapping) == 97105:
+                break
+    return cafa_id_mapping
+
+
+def extract_cafa_4_targets(fasta_path):
+    '''
+    Add target fasta to our fasta file
+    :param fasta_path:
+    :return:
+    '''
+    cafa_proteins = dict()
+    mapping = dict()
+
+    for i in Constants.CAFA_TARGETS:
+        mapping.update(read_dictionary(Constants.ROOT + 'CAFA4-export/MappingFiles/mapping.{}.map'.format(i)))
+        fasta = Constants.ROOT + 'CAFA4-export/TargetFiles/sp_species.{}.tfa'.format(i)
+        input_seq_iterator = SeqIO.parse(fasta, "fasta")
+
+        for record in input_seq_iterator:
+            cafa_proteins[mapping[record.id]] = record.seq
+
+    if not os.path.exists(Constants.ROOT + "uniprot/id_mapping"):
+        prot_id_to_prot_name = get_prot_id_and_prot_name(cafa_proteins.keys())
+        pickle_save(prot_id_to_prot_name, Constants.ROOT + "uniprot/id_mapping")
+    prot_id_to_prot_name = pickle_load(Constants.ROOT + "uniprot/id_mapping")
+
+    xx = fasta_to_dictionary(fasta_path, identifier='protein_name')
+    _difference = set(cafa_proteins.keys()).difference(set(list(xx.keys())))
+
+    difference = []
+    for diff in _difference:
+        if diff in prot_id_to_prot_name:
+            difference.append(create_seqrecord(name=diff, seq=cafa_proteins[diff], id=prot_id_to_prot_name[diff]))
+        else:
+            difference.append(create_seqrecord(name=diff, seq=cafa_proteins[diff], id=diff))
+
+    cleaned_seq_iterator = list(SeqIO.parse(fasta_path, "fasta"))
+    new_seq = cleaned_seq_iterator + difference
+
+    SeqIO.write(new_seq, Constants.ROOT + "uniprot/{}.fasta".format("cleaned_targets"), "fasta")
+    pickle_save(cafa_proteins, Constants.ROOT + "uniprot/all_cafa_target_proteins")
+
+
+def cluster_sequence(seq_id, proteins=None, add_target=False):
     """
          Script is used to cluster the proteins with mmseq2.
-        :param wd: working directory >-< default root+uniprot+mmseq2
+        :param threshold:
+        :param proteins:
+        :param add_target: Add CAFA targets
         :param input_fasta: input uniprot fasta file.
         :return: None
         """
-    wd = Constants.ROOT + "{}/mmseq".format(threshold)
+    input_fasta = Constants.ROOT + "uniprot/cleaned.fasta"
+    wd = Constants.ROOT + "{}/mmseq".format(seq_id)
     if not os.path.exists(wd):
         os.mkdir(wd)
     if proteins:
-        fasta_path = wd + "/fasta_{}".format(threshold)
+        fasta_path = wd + "/fasta_{}".format(seq_id)
         if os.path.exists(fasta_path):
             input_fasta = fasta_path
         else:
@@ -191,13 +247,21 @@ def cluster_sequence(input_fasta, threshold, proteins=None):
                              is_ok(str(record.seq)) and extract_id(record.id) in proteins]
             SeqIO.write(cleaned_fasta, fasta_path, "fasta")
             input_fasta = fasta_path
+    if add_target:
+        target_fasta_path = Constants.ROOT + "uniprot/{}.fasta".format("cleaned_targets")
+        target_path = Constants.ROOT + "uniprot/all_cafa_target_proteins"
+        if os.path.exists(target_fasta_path) and os.path.exists(target_path):
+            input_fasta = Constants.ROOT + "uniprot/cleaned_targets.fasta"
+        else:
+            extract_cafa_4_targets(input_fasta)
+            input_fasta = Constants.ROOT + "uniprot/cleaned_targets.fasta"
+
     command = "mmseqs createdb {} {} ; " \
               "mmseqs cluster {} {} tmp --min-seq-id {};" \
               "mmseqs createtsv {} {} {} {}.tsv" \
-              "".format(input_fasta, "targetDB", "targetDB", "outputClu", threshold, "targetDB", "targetDB",
+              "".format(input_fasta, "targetDB", "targetDB", "outputClu", seq_id, "targetDB", "targetDB",
                         "outputClu", "outputClu")
     subprocess.call(command, shell=True, cwd="{}".format(wd))
-
     one_line_format(wd + "/outputClu.tsv", wd)
 
 
@@ -215,28 +279,6 @@ def is_ok(seq, MINLEN=49, MAXLEN=1001):
         if c in Constants.INVALID_ACIDS:
             return False
     return True
-
-
-def extract_cafa_4_targets():
-    mapping = dict()
-    cafa_id_mapping = pickle_load("cafa_id_mapping")
-    cafa_id_mapping_reverse = pickle_load("cafa_id_mapping_reverse")
-    targets = []
-    target_beta = []
-    for i in Constants.CAFA_TARGETS:
-        mapping.update(read_dictionary(Constants.ROOT + 'CAFA4-export/MappingFiles/mapping.{}.map'.format(i)))
-        fasta = Constants.ROOT + 'CAFA4-export/TargetFiles/sp_species.{}.tfa'.format(i)
-        input_seq_iterator = SeqIO.parse(fasta, "fasta")
-        for record in input_seq_iterator:
-            _tmp = mapping[record.id]
-            if _tmp in cafa_id_mapping_reverse:
-                targets.append(record)
-            else:
-                target_beta.append(record)
-
-    SeqIO.write(targets, Constants.ROOT + "uniprot/{}.fasta".format("targets"), "fasta")
-    SeqIO.write(target_beta, Constants.ROOT + "uniprot/{}.fasta".format("target_beta"), "fasta")
-    pickle_save(mapping, Constants.ROOT + "uniprot/mapping_targets_name")
 
 
 def filter_sequences(uniprot_fasta_file, max_len, min_len):
@@ -280,7 +322,7 @@ def load_cluster_proteins(seq_id):
     return pd.Series(cluster['count'].values, index=cluster['rep']).to_dict()
 
 
-def write_output_files(acc2go, go2info, seq_id):
+def write_output_files(protein2go, go2info, seq_id):
     onts = ['molecular_function', 'biological_process', 'cellular_component']
 
     selected_goterms = {ont: set() for ont in onts}
@@ -292,7 +334,7 @@ def write_output_files(acc2go, go2info, seq_id):
         prots = go2info[goterm]['accessions']
         num = len(prots)
         namespace = go2info[goterm]['ont']
-        if 50 <= num:
+        if num >= 50:
             selected_goterms[namespace].add(goterm)
             selected_proteins = selected_proteins.union(prots)
 
@@ -320,7 +362,7 @@ def write_output_files(acc2go, go2info, seq_id):
         tsv_writer.writerow(["Protein", "molecular_function", "biological_process", "cellular_component", "all"])
 
         for chain in selected_proteins:
-            goterms = set(acc2go[chain]['goterms'])
+            goterms = set(protein2go[chain]['goterms'])
             if len(goterms) > 2:
             # selected goterms
                 mf_goterms = goterms.intersection(set(selected_goterms_list[onts[0]]))
@@ -330,10 +372,12 @@ def write_output_files(acc2go, go2info, seq_id):
                     protein_list.add(chain)
                     tsv_writer.writerow([chain, ','.join(mf_goterms), ','.join(bp_goterms), ','.join(cc_goterms), ','.join(mf_goterms.union(bp_goterms).union(cc_goterms))])
 
-    cluster_path = Constants.ROOT + "uniprot/cleaned.fasta"
+    print("Creating Clusters")
+    cluster_path = Constants.ROOT + "{}/mmseq/final_clusters.csv".format(seq_id)
     if not os.path.exists(cluster_path):
-        cluster_sequence(Constants.ROOT + "uniprot/cleaned.fasta", seq_id, protein_list)
+        cluster_sequence(seq_id, protein_list, add_target=True)
 
+    exit()
     cluster = load_cluster_proteins(seq_id=seq_id)
     protein_list = list(protein_list.intersection(set(cluster)))
 
@@ -346,7 +390,7 @@ def write_output_files(acc2go, go2info, seq_id):
     test_list = set()
     i = 0
     while len(test_list) < 5000 and i < len(protein_list):
-        goterms = acc2go[protein_list[i]]['goterms']
+        goterms = protein2go[protein_list[i]]['goterms']
         # selected goterms
         mf_goterms = set(goterms).intersection(set(selected_goterms_list[onts[0]]))
         bp_goterms = set(goterms).intersection(set(selected_goterms_list[onts[1]]))
@@ -417,20 +461,25 @@ def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=Fals
 
     protein2go = pickle_load(Constants.ROOT + "protein2go")
     go2info = pickle_load(Constants.ROOT + "go2info")
+
+    print("Writing output")
     write_output_files(protein2go, go2info, seq_id=0.95)
 
     if generate_msa:
         fasta_file = Constants.ROOT + "cleaned.fasta"
-        acc2go_primary = set(protein2go)
-        fasta_for_msas(acc2go_primary, fasta_file)
+        protein2go_primary = set(protein2go)
+        fasta_for_msas(protein2go_primary, fasta_file)
 
     if generate_esm:
         fasta_file = Constants.ROOT + "cleaned.fasta"
         fasta_for_esm(protein2go, fasta_file)
 
 
-# identified = set(pickle_load(Constants.ROOT + "uniprot/cleaned"))
-print(count_proteins(Constants.ROOT + "uniprot/targets.fasta"))
-print(count_proteins(Constants.ROOT + "uniprot/target_beta.fasta"))
+pipeline(compare=False,
+         curate_protein_goterms=False,
+         generate_go_count=False,
+         generate_msa=False,
+         generate_esm=False)
 
-compare_sequence(Constants.ROOT + "uniprot/targets.fasta")
+
+# print(get_proteins_from_fasta("/data/pycharm/TransFunData/data/0.95/mmseq/fasta_0.95")[67594])
