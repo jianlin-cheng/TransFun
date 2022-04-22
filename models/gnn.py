@@ -39,9 +39,9 @@ class GCN(torch.nn.Module):
 
         # 2. Readout layer
         x = global_mean_pool(x, data.batch)  # [batch_size, hidden_channels]
-        print(data.embedding_features_per_sequence.shape)
+        # print(data.embedding_features_per_sequence.shape)
         y = self.fc1 (data.embedding_features_per_sequence)
-        print(y.shape)
+        # print(y.shape)
         x += y
 
         # 3. Apply a final classifier

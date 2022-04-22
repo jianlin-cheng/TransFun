@@ -5,6 +5,7 @@ import torch.optim as optim
 import torchmetrics
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
+import Constants
 import wandb
 
 from Dataset.Dataset import load_dataset
@@ -53,7 +54,7 @@ kwargs = {
     'ont': 'molecular_function',
     'session': 'train'
 }
-dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
+dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
 class_weight_path = "class_weights_{}_{}_{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session'])
 if os.path.exists(class_weight_path+".pickle"):
@@ -72,21 +73,19 @@ class_weights = list(class_weights.values())
 total = sum(class_weights)
 # print(total)
 # total = 680 * len(dataset)
-print(total)
+# print(total)
 class_weights = [total/i for i in class_weights]
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 # weights = 1 / (weights / torch.min(weights))
-
-
-train_dataloader = DataLoader(dataset, batch_size=50, drop_last=False)
+train_dataloader = DataLoader(dataset, batch_size=500, drop_last=False)
 
 kwargs = {
-    'seq_id': 0.3,
+    'seq_id': 0.95,
     'ont': 'molecular_function',
     'session': 'valid'
 }
-# val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-# valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False)
+val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
+valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False)
 
 
 # print(f'Dataset: {dataset}:')
@@ -115,41 +114,22 @@ criterion = torch.nn.BCELoss(reduction='none')
 def train(epoch):
     t = time.time()
     with torch.autograd.set_detect_anomaly(True):
-        train_loss, train_acc = 0.0, 0.0
+        train_loss = 0.0
         model.train()
         count = 0.
-        total = 0.
-        correct = 0.
         for data in train_dataloader:
             optimizer.zero_grad()
-
             output = model(data.to(device))
-
-            # print(torch.sum(output, dim=0), torch.sum(output, dim=0).shape)
-            # print(torch.sum(output, dim=1), torch.sum(output, dim=1).shape)
-            #
-            # exit()
-
-
             loss = criterion(output, data.y)
             loss = (loss * class_weights).mean()
-            # writer.add_scalar("Loss/train", loss, epoch)
-
             loss.backward()
             optimizer.step()
-            # optimizer.zero_grad()
 
             train_loss = loss.data.item()
             accuracy = accuracy_score(data.y.cpu(), output.cpu() > 0.5)
             precision = precision_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
             recall = recall_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
             f1 = f1_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
-
-            # pred = (output > 0.5).float()
-            # correct += (pred == data.y).float().sum()
-            #
-            # count += 1
-            # total += data.y.size(1) * data.y.size(0)
 
             print('Epoch: {:04d}'.format(epoch),
                   'train_loss: {:.4f}'.format(train_loss),
@@ -169,33 +149,24 @@ def train(epoch):
         #
         # continue
         # # --- EVALUATE ON VALIDATION SET -------------------------------------
-        # model.eval()
-        # val_loss, val_acc = 0.0, 0.0
-        # count = 0
-        # total = 0.
-        # correct = 0.
-        # for data in valid_dataloader:
-        #     output = model(data.to(device))
-        #     loss = criterion(output, data.y)
-        #
-        #     val_loss += loss.data.item()
-        #
-        #     pred = (output > 0.5).float()
-        #     correct += (pred == data.y).float().sum()
-        #
-        #     total += data.y.size(1) * data.y.size(0)
-        #     count += 1
-        #
-        # val_acc = val_acc / count
-        # val_loss = val_loss / count
-        # # wandb.log({"val_acc": val_acc, "val_loss": val_loss})
-        #
-        # print('Epoch: {:04d}'.format(epoch),
-        #       'train_acc: {:.4f}'.format(train_acc),
-        #       'train_loss: {:.4f}'.format(train_loss),
-        #       'val_acc: {:.4f}'.format(val_acc),
-        #       'val_loss: {:.4f}'.format(val_loss),
-        #       'time: {:.4f}s'.format(time.time() - t))
+        model.eval()
+        val_loss = 0.0
+        count = 0
+        for data in valid_dataloader:
+            output = model(data.to(device))
+            loss = criterion(output, data.y)
+
+            val_loss += loss.data.item()
+            count += 1
+
+            val_acc = accuracy_score(data.y.cpu(), output.cpu() > 0.5)
+            val_precision = precision_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
+            val_recall = recall_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
+            val_f1 = f1_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
+
+        wandb.log({"val_acc": val_acc, "val_loss": val_loss,
+                   "val_precision": val_precision, "val_recall": val_recall,
+                   "val_f1": val_f1})
 
 
 def test(loader):
