@@ -55,7 +55,7 @@ if args.cuda:
 
 
 kwargs = {
-    'seq_id': 0.3,
+    'seq_id': 0.9,
     'ont': 'molecular_function',
     'session': 'train'
 }
@@ -116,7 +116,7 @@ total = sum(class_weights)
 class_weights = [total/i for i in class_weights]
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 # weights = 1 / (weights / torch.min(weights))
-train_dataloader = DataLoader(dataset, batch_size=1, drop_last=False, shuffle=True)
+train_dataloader = DataLoader(dataset, batch_size=200, drop_last=False, shuffle=True)
 
 
 kwargs = {
@@ -124,8 +124,8 @@ kwargs = {
     'ont': 'molecular_function',
     'session': 'valid'
 }
-val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-valid_dataloader = DataLoader(val_dataset, batch_size=1, drop_last=False, shuffle=True)
+val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
+valid_dataloader = DataLoader(val_dataset, batch_size=200, drop_last=False, shuffle=True)
 
 
 # print(f'Dataset: {dataset}:')
