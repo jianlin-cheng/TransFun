@@ -5,6 +5,7 @@ import torch.optim as optim
 import torchmetrics
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
+import Constants
 import wandb
 
 from Dataset.Dataset import load_dataset
@@ -53,7 +54,7 @@ kwargs = {
     'ont': 'molecular_function',
     'session': 'train'
 }
-dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
+dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
 class_weight_path = "class_weights_{}_{}_{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session'])
 if os.path.exists(class_weight_path+".pickle"):
@@ -85,7 +86,7 @@ kwargs = {
     'ont': 'molecular_function',
     'session': 'valid'
 }
-val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
+val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
 valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False)
 
 
