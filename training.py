@@ -23,7 +23,7 @@ from preprocessing.utils import pickle_save, pickle_load
 
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
 os.environ["WANDB_MODE"] = "online"
-# wandb.init(project="frimpong")
+wandb.init(project="frimpong")
 
 
 parser = argparse.ArgumentParser()
@@ -53,26 +53,26 @@ if args.cuda:
 
 
 kwargs = {
-    'seq_id': 0.3,
+    'seq_id': 0.9,
     'ont': 'molecular_function',
     'session': 'train'
 }
 
-data = pickle_load(Constants.ROOT + "{}/{}/{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session']))
-dataset = load_dataset(root=Constants.ROOT, **kwargs)
-for i in dataset:
-    print(i)
-exit()
-all_proteins = []
-for i in data:
-    all_proteins.extend(data[i])
-
-print(len(all_proteins))
-
-annot = pd.read_csv(Constants.ROOT + 'annot.tsv', delimiter='\t')
-annot = annot.where(pd.notnull(annot), None)
-annot = annot[annot['Protein'].isin(all_proteins)]
-annot = pd.Series(annot[kwargs['ont']].values, index=annot['Protein']).to_dict()
+# data = pickle_load(Constants.ROOT + "{}/{}/{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session']))
+# dataset = load_dataset(root=Constants.ROOT, **kwargs)
+# for i in dataset:
+#     print(i)
+# exit()
+# all_proteins = []
+# for i in data:
+#     all_proteins.extend(data[i])
+#
+# print(len(all_proteins))
+#
+# annot = pd.read_csv(Constants.ROOT + 'annot.tsv', delimiter='\t')
+# annot = annot.where(pd.notnull(annot), None)
+# annot = annot[annot['Protein'].isin(all_proteins)]
+# annot = pd.Series(annot[kwargs['ont']].values, index=annot['Protein']).to_dict()
 
 # terms = []
 # for i in annot:
@@ -83,10 +83,8 @@ annot = pd.Series(annot[kwargs['ont']].values, index=annot['Protein']).to_dict()
 # print(counter, len(counter))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
-exit()
 
 class_weight_path = Constants.ROOT + "{}/{}/class_weights".format(kwargs['seq_id'], kwargs['ont'])
-
 if os.path.exists(class_weight_path+".pickle"):
     print("Loading class weights")
     class_weights = pickle_load(class_weight_path)
@@ -107,32 +105,25 @@ else:
     class_weights = {i: result[0][i].item() for i in range(result.size(1))}
     pickle_save(class_weights, class_weight_path)
 
-print(class_weights)
 
-
-exit()
 class_weights = list(class_weights.values())
 total = sum(class_weights)
-
-print(total)
-
-exit()
 # print(total)
 # total = 680 * len(dataset)
-print(total)
+
 class_weights = [total/i for i in class_weights]
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 # weights = 1 / (weights / torch.min(weights))
-train_dataloader = DataLoader(dataset, batch_size=50, drop_last=False, shuffle=True)
+train_dataloader = DataLoader(dataset, batch_size=40, drop_last=False, shuffle=True)
 
 print("Validation")
 kwargs = {
-    'seq_id': 0.3,
+    'seq_id': 0.9,
     'ont': 'molecular_function',
     'session': 'valid'
 }
 val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False, shuffle=True)
+valid_dataloader = DataLoader(val_dataset, batch_size=40, drop_last=False, shuffle=True)
 
 
 # print(f'Dataset: {dataset}:')
@@ -141,7 +132,7 @@ valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False, shuf
 # print(f'Number of graphs: {len(dataset)}')
 # print(f'Number of features: {dataset.num_features}')
 
-args.nclass = dataset[0].y.shape[1]
+args.nclass = dataset[0].molecular_function.shape[1]
 model = GCN(input_features=dataset.num_features, hidden_channels_1=args.hidden1, hidden_channels_2=args.hidden2,
             hidden_channels_3=args.hidden3, num_classes=args.nclass)
 model.to(device)
@@ -177,7 +168,7 @@ def train(epoch):
             # exit()
 
 
-            loss = criterion(output, data.y)
+            loss = criterion(output, data.molecular_function)
             loss = (loss * class_weights).mean()
             # writer.add_scalar("Loss/train", loss, epoch)
 
@@ -186,16 +177,16 @@ def train(epoch):
             # optimizer.zero_grad()
 
             train_loss = loss.data.item()
-            accuracy = accuracy_score(data.y.cpu(), output.cpu() > 0.5)
-            precision = precision_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
-            recall = recall_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
-            f1 = f1_score(data.y.cpu(), output.cpu() > 0.5, average="samples")
+            accuracy = accuracy_score(data.molecular_function.cpu(), output.cpu() > 0.5)
+            precision = precision_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+            recall = recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+            f1 = f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
 
             # pred = (output > 0.5).float()
-            # correct += (pred == data.y).float().sum()
+            # correct += (pred == data.molecular_function).float().sum()
             #
             # count += 1
-            # total += data.y.size(1) * data.y.size(0)
+            # total += data.molecular_function.size(1) * data.molecular_function.size(0)
 
             print('Epoch: {:04d}'.format(epoch),
                   'train_loss: {:.4f}'.format(train_loss),
@@ -209,39 +200,39 @@ def train(epoch):
         # train_acc = 100 * correct / total
         # train_loss = train_loss / count
         #
-            # wandb.log({"train_acc": accuracy, "train_loss": train_loss,
-            #            "precision": precision, "recall": recall,
-            #            "f1": f1})
+            wandb.log({"train_acc": accuracy, "train_loss": train_loss,
+                       "precision": precision, "recall": recall,
+                       "f1": f1})
         #
         # continue
-        # # --- EVALUATE ON VALIDATION SET -------------------------------------
-        # model.eval()
-        # val_loss, val_acc = 0.0, 0.0
-        # count = 0
-        # total = 0.
-        # correct = 0.
-        # for data in valid_dataloader:
-        #     output = model(data.to(device))
-        #     loss = criterion(output, data.y)
+        # --- EVALUATE ON VALIDATION SET -------------------------------------
+        model.eval()
+        val_loss, val_acc = 0.0, 0.0
+        count = 0
+        total = 0.
+        correct = 0.
+        for data in valid_dataloader:
+            output = model(data.to(device))
+            val_loss = criterion(output, data.molecular_function)
+            val_loss = (val_loss * class_weights).mean()
+
+            val_loss = val_loss.data.item()
+            val_acc = accuracy_score(data.molecular_function.cpu(), output.cpu() > 0.5)
+            val_precision = precision_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+            val_recall = recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+            val_f1 = f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
         #
-        #     val_loss += loss.data.item()
-        #
-        #     pred = (output > 0.5).float()
-        #     correct += (pred == data.y).float().sum()
-        #
-        #     total += data.y.size(1) * data.y.size(0)
-        #     count += 1
-        #
-        # val_acc = val_acc / count
-        # val_loss = val_loss / count
-        # # wandb.log({"val_acc": val_acc, "val_loss": val_loss})
-        #
-        # print('Epoch: {:04d}'.format(epoch),
-        #       'train_acc: {:.4f}'.format(train_acc),
-        #       'train_loss: {:.4f}'.format(train_loss),
-        #       'val_acc: {:.4f}'.format(val_acc),
-        #       'val_loss: {:.4f}'.format(val_loss),
-        #       'time: {:.4f}s'.format(time.time() - t))
+        print('Epoch: {:04d}'.format(epoch),
+              'val_acc: {:.4f}'.format(val_acc),
+              'val_loss: {:.4f}'.format(val_loss),
+              'val_precision: {:.4f}'.format(val_precision),
+              'val_recall: {:.4f}'.format(val_recall),
+              'val_f1: {:.4f}'.format(val_f1),
+              'time: {:.4f}s'.format(time.time() - t))
+
+        wandb.log({"val_acc": val_acc, "val_loss": val_loss,
+                   "val_precision": val_precision, "val_recall": val_recall,
+                   "val_f1": val_f1})
 
 
 def test(loader):
@@ -251,7 +242,7 @@ def test(loader):
     for data in train_dataloader:
         out = model(data)
         pred = out.argmax(dim=1)
-        correct += int((pred == data.y).sum())  # Check against ground-truth labels.
+        correct += int((pred == data.molecular_function).sum())  # Check against ground-truth labels.
     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
 
 
