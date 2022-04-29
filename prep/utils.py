@@ -21,12 +21,6 @@ NAMESPACES = {
 
 EXP_CODES = {'EXP', 'IDA', 'IPI', 'IMP', 'IGI', 'IEP', 'TAS', 'IC', 'HTP', 'HDA', 'HMP', 'HGI', 'HEP'}
 
-
-
-
-
-
-
 def read_fasta(filename):
     seqs = list()
     info = list()

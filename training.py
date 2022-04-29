@@ -16,12 +16,14 @@ from torch.utils.tensorboard import SummaryWriter
 import time
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch_geometric.loader import DataLoader
+import pandas as pd
+from collections import Counter
 
 from preprocessing.utils import pickle_save, pickle_load
 
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
 os.environ["WANDB_MODE"] = "online"
-wandb.init(project="frimpong")
+# wandb.init(project="frimpong")
 
 
 parser = argparse.ArgumentParser()
@@ -49,45 +51,88 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
+
 kwargs = {
     'seq_id': 0.3,
     'ont': 'molecular_function',
     'session': 'train'
 }
-dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
-class_weight_path = "class_weights_{}_{}_{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session'])
+data = pickle_load(Constants.ROOT + "{}/{}/{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session']))
+dataset = load_dataset(root=Constants.ROOT, **kwargs)
+for i in dataset:
+    print(i)
+exit()
+all_proteins = []
+for i in data:
+    all_proteins.extend(data[i])
+
+print(len(all_proteins))
+
+annot = pd.read_csv(Constants.ROOT + 'annot.tsv', delimiter='\t')
+annot = annot.where(pd.notnull(annot), None)
+annot = annot[annot['Protein'].isin(all_proteins)]
+annot = pd.Series(annot[kwargs['ont']].values, index=annot['Protein']).to_dict()
+
+# terms = []
+# for i in annot:
+#     terms.extend(annot[i].split(","))
+#
+# counter = Counter(terms)
+#
+# print(counter, len(counter))
+
+dataset = load_dataset(root=Constants.ROOT, **kwargs)
+exit()
+
+class_weight_path = Constants.ROOT + "{}/{}/class_weights".format(kwargs['seq_id'], kwargs['ont'])
+
 if os.path.exists(class_weight_path+".pickle"):
     print("Loading class weights")
     class_weights = pickle_load(class_weight_path)
 else:
     lab = []
     for i in dataset:
-        lab.append(i.y)
+        if kwargs['ont'] == 'molecular_function':
+            lab.append(i.molecular_function)
+        elif kwargs['ont'] == 'biological_process':
+            lab.append(i.biological_process)
+        elif kwargs['ont'] == 'cellular_component':
+            lab.append(i.cellular_component)
+        elif kwargs['ont'] == 'all':
+            lab.append(i.all)
+
     result = torch.sum(torch.stack(lab), dim=0)
     result = result.to(torch.int)
     class_weights = {i: result[0][i].item() for i in range(result.size(1))}
     pickle_save(class_weights, class_weight_path)
 
+print(class_weights)
+
+
+exit()
 class_weights = list(class_weights.values())
 total = sum(class_weights)
+
+print(total)
+
+exit()
 # print(total)
 # total = 680 * len(dataset)
 print(total)
 class_weights = [total/i for i in class_weights]
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 # weights = 1 / (weights / torch.min(weights))
+train_dataloader = DataLoader(dataset, batch_size=50, drop_last=False, shuffle=True)
 
-
-train_dataloader = DataLoader(dataset, batch_size=50, drop_last=False)
-
+print("Validation")
 kwargs = {
     'seq_id': 0.3,
     'ont': 'molecular_function',
     'session': 'valid'
 }
-val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
-valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False)
+val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
+valid_dataloader = DataLoader(val_dataset, batch_size=100, drop_last=False, shuffle=True)
 
 
 # print(f'Dataset: {dataset}:')
@@ -164,9 +209,9 @@ def train(epoch):
         # train_acc = 100 * correct / total
         # train_loss = train_loss / count
         #
-            wandb.log({"train_acc": accuracy, "train_loss": train_loss,
-                       "precision": precision, "recall": recall,
-                       "f1": f1})
+            # wandb.log({"train_acc": accuracy, "train_loss": train_loss,
+            #            "precision": precision, "recall": recall,
+            #            "f1": f1})
         #
         # continue
         # # --- EVALUATE ON VALIDATION SET -------------------------------------

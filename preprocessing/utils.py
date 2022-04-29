@@ -44,6 +44,7 @@ def count_proteins_biopython(fasta_file):
 
 def get_proteins_from_fasta(fasta_file):
     proteins = list(SeqIO.parse(fasta_file, "fasta"))
+    proteins = [i.id.split("|")[1] for i in proteins]
     return proteins
 
 
@@ -54,7 +55,18 @@ def fasta_to_dictionary(fasta_file, identifier='protein_id'):
         loc = 2
     data = {}
     for seq_record in SeqIO.parse(fasta_file, "fasta"):
-        data[seq_record.id.split("|")[loc]] = str(seq_record.seq)
+        if "|" in seq_record.id:
+            data[seq_record.id.split("|")[loc]] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
+        else:
+            data[seq_record.id] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
+    return data
+
+
+def alpha_seq_fasta_to_dictionary(fasta_file):
+    data = {}
+    for seq_record in SeqIO.parse(fasta_file, "fasta"):
+        _protein = seq_record.id.split(":")[1].split("-")[1]
+        data[_protein] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
     return data
 
 
@@ -66,25 +78,6 @@ def pickle_save(data, filename):
 def pickle_load(filename):
     with open('{}.pickle'.format(filename), 'rb') as handle:
         return pickle.load(handle)
-
-
-
-def download_pdb_files(file):
-    chunksize = 100
-    with pd.read_csv(file, chunksize=chunksize, sep='\t', skiprows=1) as reader:
-        for chunk in reader:
-            print(chunk.head(10))
-            pdb_ids = chunk['PDB'].tolist()
-            print(pdb_ids)
-
-    pdb_ids = x['PDB'].tolist()
-    for i in pdb_ids:
-        if not os.path.isfile('data/pdb/GO/{}.pdb'.format(i)):
-            # note downloading a ~1Gb file can take a minute
-            print('Downloading pdb file for {}'.format(i))
-            subprocess.call(
-                'wget -O data/pdb/GO/{}.pdb https://files.rcsb.org/download/{}.pdb1'.format(i, i),
-                shell=True)
 
 
 def download_msa_database(url, name):
@@ -128,13 +121,12 @@ def partition_files(group):
 
 # Just used to group msas to keep track of generation
 def fasta_for_msas(proteins, fasta_file):
-
     root_dir = '/data/uniprot/'
     input_seq_iterator = SeqIO.parse(fasta_file, "fasta")
     num_protein = 0
     for record in input_seq_iterator:
-        if num_protein%200 == 0:
-            parent_dir = root_dir + str(int(num_protein/200))
+        if num_protein % 200 == 0:
+            parent_dir = root_dir + str(int(num_protein / 200))
             print(parent_dir)
             if not os.path.exists(parent_dir):
                 os.mkdir(parent_dir)
@@ -148,7 +140,6 @@ def fasta_for_msas(proteins, fasta_file):
 
 # Files to generate esm embedding for.
 def fasta_for_esm(proteins, fasta_file):
-
     protein_path = Constants.ROOT + "uniprot/{}.fasta".format("filtered")
     input_seq_iterator = SeqIO.parse(fasta_file, "fasta")
 
@@ -173,7 +164,7 @@ def get_sequence_from_pdb(pdb_file, chain_id):
     return residues
 
 
-def is_ok(seq, MINLEN=49, MAXLEN=1001):
+def is_ok(seq, MINLEN=49, MAXLEN=1024):
     """
            Checks if sequence is of good quality
            :param MAXLEN:
@@ -338,3 +329,100 @@ class Ontology(object):
                 for ch_id in self.ont[t_id]['children']:
                     q.append(ch_id)
         return term_set
+
+
+def read_test_set(file_name):
+    with open(file_name) as file:
+        lines = file.readlines()
+
+    lines = [line.rstrip('\n').split("\t") for line in lines]
+    return lines
+
+
+def collect_test():
+    total_test = set()
+    for ts in Constants.TEST_GROUPS:
+        tmp = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        total_test.update(set([i[0] for i in tmp]))
+
+        tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        total_test.update(set([i[0] for i in tmp]))
+    return total_test
+
+
+def test_annotation():
+    # Add annotations for test set
+    data = {}
+    for ts in Constants.TEST_GROUPS:
+        tmp = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        for i in tmp:
+            if i[0] in data:
+                data[i[0]][ts].add(i[1])
+            else:
+                data[i[0]] = {'LK_bpo': set(), 'LK_mfo': set(), 'LK_cco': set(), 'NK_bpo': set(), 'NK_mfo': set(), 'NK_cco': set()}
+                data[i[0]][ts].add(i[1])
+
+        tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        for i in tmp:
+            if i[0] in data:
+                data[i[0]][ts].add(i[1])
+            else:
+                data[i[0]] = {'LK_bpo': set(), 'LK_mfo': set(), 'LK_cco': set(), 'NK_bpo': set(), 'NK_mfo': set(), 'NK_cco': set()}
+                data[i[0]][ts].add(i[1])
+
+    return data
+
+
+# GO terms for test set.
+def get_test_classes():
+    data = set()
+    for ts in Constants.TEST_GROUPS:
+        tmp = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        for i in tmp:
+            data.add(i[1])
+
+        tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        for i in tmp:
+            data.add(i[1])
+
+    return data
+
+
+
+def create_cluster(seq_identity=None):
+    def get_position(row, pos, column, split):
+        primary = row[column].split(split)[pos]
+        return primary
+
+    computed = pd.read_pickle(Constants.ROOT + 'uniprot/set1/swissprot.pkl')
+    computed['primary_accession'] = computed.apply(lambda row: get_position(row, 0, 'accessions', ';'), axis=1)
+    annotated = pickle_load(Constants.ROOT + "uniprot/anotated")
+
+    def max_go_terms(row):
+        members = row['cluster'].split('\t')
+        largest = 0
+        max = 0
+        for index, value in enumerate(members):
+            x = computed.loc[computed['primary_accession'] == value]['prop_annotations'].values  # .tolist()
+            if len(x) > 0:
+                if len(x[0]) > largest:
+                    largest = len(x[0])
+                    max = index
+        return members[max]
+
+    if seq_identity is not None:
+        src = "/data/pycharm/TransFunData/data/uniprot/set1/mm2seq_{}/max_term".format(seq_identity)
+        if os.path.isfile(src):
+            cluster = pd.read_pickle(src)
+        else:
+            cluster = pd.read_csv("/data/pycharm/TransFunData/data/uniprot/set1/mm2seq_{}/final_clusters.tsv"
+                                  .format(seq_identity), names=['cluster'], header=None)
+
+            cluster['rep'] = cluster.apply(lambda row: get_position(row, 0, 'cluster', '\t'), axis=1)
+            cluster['max'] = cluster.apply(lambda row: max_go_terms(row), axis=1)
+            cluster.to_pickle("/data/pycharm/TransFunData/data/uniprot/set1/mm2seq_{}/max_term".format(seq_identity))
+
+        cluster = cluster['max'].to_list()
+        computed = computed[computed['primary_accession'].isin(cluster)]
+
+    return computed
