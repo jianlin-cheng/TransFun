@@ -33,3 +33,6 @@ NAMESPACES = {
     'mf': 'molecular_function',
     'bp': 'biological_process'
 }
+
+
+TEST_GROUPS = ["LK_bpo", "LK_mfo", "LK_cco", "NK_bpo", "NK_mfo", "NK_cco"]

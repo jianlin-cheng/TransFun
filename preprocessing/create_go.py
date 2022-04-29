@@ -12,7 +12,8 @@ from Bio.SeqRecord import SeqRecord
 import Constants
 from preprocessing.utils import pickle_save, pickle_load, get_sequence_from_pdb, fasta_for_msas, \
     count_proteins_biopython, count_proteins, fasta_for_esm, fasta_to_dictionary, read_dictionary, \
-    get_proteins_from_fasta, create_seqrecord
+    get_proteins_from_fasta, create_seqrecord, read_test_set, alpha_seq_fasta_to_dictionary, collect_test, is_ok, \
+    test_annotation, get_test_classes
 
 
 def extract_id(header):
@@ -29,10 +30,7 @@ def compare_sequence(uniprot_fasta_file, save=False):
     identical = []
     unidentical = []
     detected = 0
-    mapping = pickle_load(Constants.ROOT + "uniprot/mapping_targets_name")
-    cafa_id_mapping_reverse = pickle_load("cafa_id_mapping_reverse")
     for seq_record in SeqIO.parse(uniprot_fasta_file, "fasta"):
-        # uniprot_id = cafa_id_mapping_reverse[mapping[seq_record.id]]#.split("'t\'")[1]
         uniprot_id = extract_id(seq_record.id)
         # print("Uniprot ID is {} and sequence is {}".format(uniprot_id, str(seq_record.seq)))
         # Check if alpha fold predicted structure
@@ -104,15 +102,17 @@ def get_protein_go(uniprot_sprot_dat=None, save_path=None):
                 with_string = evidence[1]
                 evidence = evidence[0]
                 all.append(
-                    [primary_accession, entry_name, description, with_string, evidence, go_id, organism, taxonomy])
+                    [primary_accession, entry_name, description, with_string,
+                     evidence, go_id, organism, taxonomy])
     with open(save_path, "w") as f:
         wr = csv.writer(f, delimiter='\t')
         wr.writerows(all)
 
 
-def generate_go_counts(fname="", go_graph=""):
+def generate_go_counts(fname="", go_graph="", cleaned_proteins =None):
     """
        Get only sequences that meet the criteria of sequence length and sequences.
+       :param cleaned_proteins: proteins filtered for alphafold sequence
        :param go_graph: obo-basic graph
        :param fname: accession2go file
        :param chains: the proteins we are considering
@@ -122,7 +122,7 @@ def generate_go_counts(fname="", go_graph=""):
     df = pd.read_csv(fname, delimiter="\t")
 
     df = df[df['EVIDENCE'].isin(Constants.exp_evidence_codes)]
-    # df = df[df['ACC'].isin(chains)]
+    df = df[df['ACC'].isin(cleaned_proteins)]
 
     protein2go = {}
     go2info = {}
@@ -185,43 +185,33 @@ def get_prot_id_and_prot_name(cafa_proteins):
     return cafa_id_mapping
 
 
-def extract_cafa_4_targets(fasta_path):
-    '''
-    Add target fasta to our fasta file
-    :param fasta_path:
-    :return:
-    '''
-    cafa_proteins = dict()
-    mapping = dict()
+def target_in_swissprot_trembl_no_alpha():
+    gps = ["LK_bpo", "LK_mfo", "LK_cco", "NK_bpo", "NK_mfo", "NK_cco"]
+    targets = set()
+    for ts in gps:
+        ts_func_old = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        targets.update(set([i[0] for i in ts_func_old]))
 
-    for i in Constants.CAFA_TARGETS:
-        mapping.update(read_dictionary(Constants.ROOT + 'CAFA4-export/MappingFiles/mapping.{}.map'.format(i)))
-        fasta = Constants.ROOT + 'CAFA4-export/TargetFiles/sp_species.{}.tfa'.format(i)
-        input_seq_iterator = SeqIO.parse(fasta, "fasta")
+        ts_func_new = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        targets.update(set([i[0] for i in ts_func_new]))
 
-        for record in input_seq_iterator:
-            cafa_proteins[mapping[record.id]] = record.seq
+    target = []
+    for seq_record in SeqIO.parse(Constants.ROOT + "uniprot/uniprot_trembl.fasta", "fasta"):
+        if extract_id(seq_record.id) in targets:
+            target.append(seq_record)
+            print(len(target))
+            if len(target) == len(targets):
+                break
+    for seq_record in SeqIO.parse(Constants.ROOT + "uniprot/uniprot_sprot.fasta", "fasta"):
+        if extract_id(seq_record.id) in targets:
+            target.append(seq_record)
+            print(len(target))
+            if len(target) == len(targets):
+                break
+    SeqIO.write(target, Constants.ROOT + "uniprot/{}.fasta".format("target_and_sequence"), "fasta")
 
-    if not os.path.exists(Constants.ROOT + "uniprot/id_mapping"):
-        prot_id_to_prot_name = get_prot_id_and_prot_name(cafa_proteins.keys())
-        pickle_save(prot_id_to_prot_name, Constants.ROOT + "uniprot/id_mapping")
-    prot_id_to_prot_name = pickle_load(Constants.ROOT + "uniprot/id_mapping")
 
-    xx = fasta_to_dictionary(fasta_path, identifier='protein_name')
-    _difference = set(cafa_proteins.keys()).difference(set(list(xx.keys())))
-
-    difference = []
-    for diff in _difference:
-        if diff in prot_id_to_prot_name:
-            difference.append(create_seqrecord(name=diff, seq=cafa_proteins[diff], id=prot_id_to_prot_name[diff]))
-        else:
-            difference.append(create_seqrecord(name=diff, seq=cafa_proteins[diff], id=diff))
-
-    cleaned_seq_iterator = list(SeqIO.parse(fasta_path, "fasta"))
-    new_seq = cleaned_seq_iterator + difference
-
-    SeqIO.write(new_seq, Constants.ROOT + "uniprot/{}.fasta".format("cleaned_targets"), "fasta")
-    pickle_save(cafa_proteins, Constants.ROOT + "uniprot/all_cafa_target_proteins")
+# target_in_swissprot_trembl_no_alpha()
 
 
 def cluster_sequence(seq_id, proteins=None, add_target=False):
@@ -232,8 +222,16 @@ def cluster_sequence(seq_id, proteins=None, add_target=False):
         :param add_target: Add CAFA targets
         :param input_fasta: input uniprot fasta file.
         :return: None
+
+        1. sequence to cluster is cleaned sequence.
+        2. Filter for only selected proteins
+        3. Add proteins in target not in the filtered list:
+            3.1
+            3.2
         """
     input_fasta = Constants.ROOT + "uniprot/cleaned.fasta"
+    print("Number of proteins in raw cleaned is {}".format(count_proteins(input_fasta)))
+    print("Number of selected proteins in raw cleaned is {}".format(len(proteins)))
     wd = Constants.ROOT + "{}/mmseq".format(seq_id)
     if not os.path.exists(wd):
         os.mkdir(wd)
@@ -243,55 +241,109 @@ def cluster_sequence(seq_id, proteins=None, add_target=False):
             input_fasta = fasta_path
         else:
             input_seq_iterator = SeqIO.parse(input_fasta, "fasta")
-            cleaned_fasta = [record for record in input_seq_iterator if
-                             is_ok(str(record.seq)) and extract_id(record.id) in proteins]
+            cleaned_fasta = [record for record in input_seq_iterator if extract_id(record.id) in proteins]
             SeqIO.write(cleaned_fasta, fasta_path, "fasta")
+            assert len(cleaned_fasta) == len(proteins)
             input_fasta = fasta_path
+    # Add sequence for target not in the uniprotKB
     if add_target:
-        target_fasta_path = Constants.ROOT + "uniprot/{}.fasta".format("cleaned_targets")
-        target_path = Constants.ROOT + "uniprot/all_cafa_target_proteins"
-        if os.path.exists(target_fasta_path) and os.path.exists(target_path):
-            input_fasta = Constants.ROOT + "uniprot/cleaned_targets.fasta"
+        cleaned_missing_target_sequence = Constants.ROOT + "uniprot/cleaned_missing_target_sequence.fasta"
+        if os.path.exists(cleaned_missing_target_sequence):
+            input_fasta = cleaned_missing_target_sequence
         else:
-            extract_cafa_4_targets(input_fasta)
-            input_fasta = Constants.ROOT + "uniprot/cleaned_targets.fasta"
+            missing_targets_205_now = []
+            missing_targets_195_200 = []
+            # Adding missing target sequence
+            all_list = set([extract_id(i.id) for i in (SeqIO.parse(input_fasta, "fasta"))])
+            extra_alpha_fold = alpha_seq_fasta_to_dictionary(Constants.ROOT + "uniprot/alphafold_sequences.fasta")
+            extra_trembl = fasta_to_dictionary(Constants.ROOT + "uniprot/target_and_sequence.fasta",
+                                               identifier='protein_id')
+            for ts in Constants.TEST_GROUPS:
+                ts_func_old = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+                ts_func_old = set([i[0] for i in ts_func_old])
 
-    command = "mmseqs createdb {} {} ; " \
-              "mmseqs cluster {} {} tmp --min-seq-id {};" \
-              "mmseqs createtsv {} {} {} {}.tsv" \
-              "".format(input_fasta, "targetDB", "targetDB", "outputClu", seq_id, "targetDB", "targetDB",
-                        "outputClu", "outputClu")
-    subprocess.call(command, shell=True, cwd="{}".format(wd))
-    one_line_format(wd + "/outputClu.tsv", wd)
+                ts_func_new = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+                ts_func_new = set([i[0] for i in ts_func_new])
 
+                print("Adding 195-200 {}".format(ts))
+                for _id in ts_func_old:
+                    # Alphafold sequence always takes precedence
+                    if _id not in all_list:
+                        if _id in extra_alpha_fold:
+                            _mp = extra_alpha_fold[_id]
+                            missing_targets_195_200.append(SeqRecord(id=_mp[0].replace("AFDB:", "").
+                                                                     replace("AF-", "").
+                                                                     replace("-F1", ""),
+                                                                     name=_mp[1],
+                                                                     description=_mp[2],
+                                                                     seq=_mp[3]))
+                            # print("found {} in alphafold".format(_id))
+                        elif _id in extra_trembl:
+                            _mp = extra_trembl[_id]
+                            missing_targets_195_200.append(SeqRecord(id=_mp[0],
+                                                                     name=_mp[1],
+                                                                     description=_mp[2],
+                                                                     seq=_mp[3]))
+                            # print("found {} in trembl".format(_id))
+                        else:
+                            print("Found in none for {}".format(_id))
 
-def is_ok(seq, MINLEN=49, MAXLEN=1001):
-    """
-       Checks if sequence is of good quality
-       :param MAXLEN:
-       :param MINLEN:
-       :param seq:
-       :return: None
-       """
-    if len(seq) < MINLEN or len(seq) > MAXLEN:
-        return False
-    for c in seq:
-        if c in Constants.INVALID_ACIDS:
-            return False
-    return True
+                print("Adding 205-now {}".format(ts))
+                for _id in ts_func_new:
+                    # Alphafold sequence always takes precedence
+                    if _id not in all_list:
+                        if _id in extra_alpha_fold:
+                            _mp = extra_alpha_fold[_id]
+                            missing_targets_205_now.append(SeqRecord(id=_mp[0].replace("AFDB:", "").
+                                                                     replace("AF-", "").
+                                                                     replace("-F1", ""),
+                                                                     name=_mp[1],
+                                                                     description=_mp[2],
+                                                                     seq=_mp[3]))
+                        # print("found {} in alphafold".format(_id))
+                        elif _id in extra_trembl:
+                            _mp = extra_trembl[_id]
+                            missing_targets_205_now.append(SeqRecord(id=_mp[0],
+                                                                     name=_mp[1],
+                                                                     description=_mp[2],
+                                                                     seq=_mp[3]))
+                            # print("found {} in trembl".format(_id))
+                        else:
+                            print("Found in none for {}".format(_id))
 
+            # save missing sequence
+            SeqIO.write(missing_targets_195_200, Constants.ROOT + "uniprot/{}.fasta".format("missing_targets_195_200"),
+                        "fasta")
+            SeqIO.write(missing_targets_205_now, Constants.ROOT + "uniprot/{}.fasta".format("missing_targets_205_now"),
+                        "fasta")
 
-def filter_sequences(uniprot_fasta_file, max_len, min_len):
-    """
-       Get only sequences that meet the criteria of sequence length and sequences.
-       :param max_len:
-       :param min_len:
-       :param uniprot_fasta_file:
-       :return: None
-       """
-    input_seq_iterator = SeqIO.parse(uniprot_fasta_file, "fasta")
-    cleaned = [record.id.split("|")[1] for record in input_seq_iterator if is_ok(str(record.seq))]
-    pickle_save(cleaned, Constants.ROOT + "anotated")
+            input_seq_iterator = list(SeqIO.parse(input_fasta, "fasta"))
+            SeqIO.write(input_seq_iterator + missing_targets_195_200 + missing_targets_205_now, Constants.ROOT +
+                        "uniprot/{}.fasta".format("cleaned_missing_target_sequence"), "fasta")
+
+            input_fasta = cleaned_missing_target_sequence
+
+        # input_seq_iterator = SeqIO.parse(Constants.ROOT +
+        #                 "uniprot/{}.fasta".format("cleaned_missing_target_sequence"), "fasta")
+        #
+        # cleaned_fasta = set()
+        # for record in input_seq_iterator:
+        #     if record.id.startswith("AFDB"):
+        #         cleaned_fasta.add(record.id.split(':')[1].split('-')[1])
+        #     else:
+        #         cleaned_fasta.add(extract_id(record.id))
+        #
+        # print(len(collect_test() - cleaned_fasta), len(cleaned_fasta))
+
+        print("Number of proteins in cleaned_missing_target_sequence is {}".format(count_proteins(input_fasta)))
+
+        command = "mmseqs createdb {} {} ; " \
+                  "mmseqs cluster {} {} tmp --min-seq-id {};" \
+                  "mmseqs createtsv {} {} {} {}.tsv" \
+                  "".format(input_fasta, "targetDB", "targetDB", "outputClu", seq_id, "targetDB", "targetDB",
+                            "outputClu", "outputClu")
+        subprocess.call(command, shell=True, cwd="{}".format(wd))
+        one_line_format(wd + "/outputClu.tsv", wd)
 
 
 def accession2sequence(fasta_file=""):
@@ -305,21 +357,22 @@ def accession2sequence(fasta_file=""):
     pickle_save(acc2seq, Constants.ROOT + "uniprot/acc2seq")
 
 
-def load_cluster_proteins(seq_id):
-    def get_position(row, pos, column, split):
-        primary = row[column].split(split)[pos]
-        return primary
+def collect_test_clusters(cluster_path):
+    # collect test and clusters
+    total_test = collect_test()
 
-    def count_members(row, column, split):
-        primary = row[column].split(split)
-        return len(primary)
+    computed = pd.read_csv(cluster_path, names=['cluster'], header=None).to_dict()['cluster']
+    computed = {i: set(computed[i].split('\t')) for i in computed}
 
-    cluster = pd.read_csv(Constants.ROOT + "{}/mmseq/final_clusters.csv".format(seq_id),
-                          names=['cluster'], header=None)
-    cluster['rep'] = cluster.apply(lambda row: get_position(row, 0, 'cluster', '\t'), axis=1)
-    cluster['count'] = cluster.apply(lambda row: count_members(row, 'cluster', '\t'), axis=1)
+    test_cluster = set()
+    train_cluster_indicies = []
+    for i in computed:
+        if total_test.intersection(computed[i]):
+            test_cluster.update(computed[i])
+        else:
+            train_cluster_indicies.append(i)
 
-    return pd.Series(cluster['count'].values, index=cluster['rep']).to_dict()
+    return test_cluster, train_cluster_indicies
 
 
 def write_output_files(protein2go, go2info, seq_id):
@@ -328,13 +381,15 @@ def write_output_files(protein2go, go2info, seq_id):
     selected_goterms = {ont: set() for ont in onts}
     selected_proteins = set()
 
+    print("Number of GO terms is {} proteins is {}".format(len(go2info), len(protein2go)))
+
     # for each go term count related proteins; if they are from 50 to 5000
     # then we can add them to our data.
     for goterm in go2info:
         prots = go2info[goterm]['accessions']
         num = len(prots)
         namespace = go2info[goterm]['ont']
-        if num >= 50:
+        if num >= 60:
             selected_goterms[namespace].add(goterm)
             selected_proteins = selected_proteins.union(prots)
 
@@ -347,66 +402,83 @@ def write_output_files(protein2go, go2info, seq_id):
     for ont in onts:
         print("###", ont, ":", len(selected_goterms_list[ont]))
 
-    # get all annotations
-    protein_list = set()
-
     terms = {}
     for ont in onts:
         terms['GO-terms-' + ont] = selected_goterms_list[ont]
         terms['GO-names-' + ont] = selected_gonames_list[ont]
 
-    pickle_save(terms, Constants.ROOT + '{}/term2name'.format(seq_id))
+    terms['GO-terms-all'] = selected_goterms_list['molecular_function'] + \
+                            selected_goterms_list['biological_process'] + \
+                            selected_goterms_list['cellular_component']
 
-    with open(Constants.ROOT + '{}/annot.tsv'.format(seq_id), 'wt') as out_file:
+    terms['GO-names-all'] = selected_gonames_list['molecular_function'] + \
+                            selected_goterms_list['biological_process'] + \
+                            selected_goterms_list['cellular_component']
+
+    pickle_save(terms, Constants.ROOT + 'go_terms')
+    fasta_dic = fasta_to_dictionary(Constants.ROOT + "uniprot/cleaned.fasta")
+
+    protein_list = set()
+    terms_count = {'mf': set(), 'bp': set(), 'cc': set()}
+    with open(Constants.ROOT + 'annot.tsv', 'wt') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')
         tsv_writer.writerow(["Protein", "molecular_function", "biological_process", "cellular_component", "all"])
 
         for chain in selected_proteins:
             goterms = set(protein2go[chain]['goterms'])
-            if len(goterms) > 2:
-            # selected goterms
+            if len(goterms) > 2 and is_ok(str(fasta_dic[chain][3])):
+                # selected goterms
                 mf_goterms = goterms.intersection(set(selected_goterms_list[onts[0]]))
                 bp_goterms = goterms.intersection(set(selected_goterms_list[onts[1]]))
                 cc_goterms = goterms.intersection(set(selected_goterms_list[onts[2]]))
                 if len(mf_goterms) > 0 or len(bp_goterms) > 0 or len(cc_goterms) > 0:
+                    terms_count['mf'].update(mf_goterms)
+                    terms_count['bp'].update(bp_goterms)
+                    terms_count['cc'].update(cc_goterms)
                     protein_list.add(chain)
-                    tsv_writer.writerow([chain, ','.join(mf_goterms), ','.join(bp_goterms), ','.join(cc_goterms), ','.join(mf_goterms.union(bp_goterms).union(cc_goterms))])
+                    tsv_writer.writerow([chain, ','.join(mf_goterms), ','.join(bp_goterms), ','.join(cc_goterms),
+                                         ','.join(mf_goterms.union(bp_goterms).union(cc_goterms))])
+
+    assert len(terms_count['mf']) == len(selected_goterms_list['molecular_function']) \
+           and len(terms_count['mf']) == len(selected_goterms_list['molecular_function']) \
+           and len(terms_count['mf']) == len(selected_goterms_list['molecular_function'])
+
 
     print("Creating Clusters")
     cluster_path = Constants.ROOT + "{}/mmseq/final_clusters.csv".format(seq_id)
     if not os.path.exists(cluster_path):
         cluster_sequence(seq_id, protein_list, add_target=True)
 
-    exit()
-    cluster = load_cluster_proteins(seq_id=seq_id)
-    protein_list = list(protein_list.intersection(set(cluster)))
+    # Remove test proteins & their cluster
+    # Decided to remove irrespective of mf, bp | cc
+    # It should be fine.
+    test_cluster, train_cluster_indicies = collect_test_clusters(cluster_path)
 
-    # # # #
-    np.random.seed(1234)
-    np.random.shuffle(protein_list)
-    print("Total number of annot nrPDB=%d" % (len(protein_list)))
+    protein_list = protein_list - test_cluster
 
-    # select test set based in 30% sequence identity
-    test_list = set()
-    i = 0
-    while len(test_list) < 5000 and i < len(protein_list):
-        goterms = protein2go[protein_list[i]]['goterms']
-        # selected goterms
+    assert len(protein_list.intersection(test_cluster)) == len(protein_list.intersection(collect_test())) == 0
+
+    validation_len = int(0.2 * len(protein_list))
+    validation_list = set()
+
+    for chain in protein_list:
+        goterms = set(protein2go[chain]['goterms'])
         mf_goterms = set(goterms).intersection(set(selected_goterms_list[onts[0]]))
         bp_goterms = set(goterms).intersection(set(selected_goterms_list[onts[1]]))
         cc_goterms = set(goterms).intersection(set(selected_goterms_list[onts[2]]))
-        if len(mf_goterms) > 0 and len(bp_goterms) > 0 and len(cc_goterms) > 0:
-            if cluster[protein_list[i]] < 5:
-                test_list.add(protein_list[i])
-        i += 1
 
-    protein_list = list(set(protein_list).difference(test_list))
+        if len(mf_goterms) > 0 and len(bp_goterms) > 0 and len(cc_goterms) > 0:
+            validation_list.add(chain)
+
+        if len(validation_list) >= validation_len:
+            break
+
+    pickle_save(validation_list, Constants.ROOT + '/{}/valid'.format(seq_id))
+    protein_list = protein_list - validation_list
 
     print("Total number of train nrPDB=%d" % (len(protein_list)))
-    print("Total number of test nrPDB=%d" % (len(test_list)))
 
-    annot = pd.read_csv('/data/pycharm/TransFunData/data/0.3/annot.tsv', delimiter='\t')
-
+    annot = pd.read_csv(Constants.ROOT + 'annot.tsv', delimiter='\t')
     for i in onts + ['all']:
         _pth = Constants.ROOT + '{}/{}'.format(seq_id, i)
         if not os.path.exists(_pth):
@@ -414,22 +486,28 @@ def write_output_files(protein2go, go2info, seq_id):
 
         tmp = annot[annot[i].notnull()][['Protein', i]]
         tmp_prot_list = set(tmp['Protein'].to_list())
-        assert set(test_list) == set(test_list).intersection(set(tmp_prot_list))
+        tmp_prot_list = tmp_prot_list.intersection(protein_list)
 
-        tmp_prot_list = list(tmp_prot_list.intersection(protein_list))
+        computed = pd.read_csv(cluster_path, names=['cluster'], header=None)
+        train_indicies = computed.index.isin(train_cluster_indicies)
 
-        np.random.shuffle(tmp_prot_list)
-        idx = int(0.8 * len(tmp_prot_list))
+        computed = computed.loc[train_indicies].to_dict()['cluster']
+        computed = {i: set(computed[i].split('\t')) for i in computed}
 
-        pickle_save(test_list, _pth + '/test')
-        pickle_save(tmp_prot_list[:idx], _pth + '/train')
-        pickle_save(tmp_prot_list[idx:], _pth + '/valid')
+        new_computed = {}
+        index = 0
+        for i in computed:
+            _tmp = tmp_prot_list.intersection(computed[i])
+            if len(_tmp) > 0:
+                new_computed[index] = _tmp
+                index += 1
 
-    # print(annot[annot['all'].notnull()][['Protein', i]])
+        pickle_save(new_computed, _pth + '/train')
+
 
 
 def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=False,
-             generate_msa=False, generate_esm=False):
+             generate_msa=False, generate_esm=False, seq_id=0.3):
     """
     1. First compare the sequence in uniprot and alpha fold and retrieve same sequence and different sequences.
     2. Replace mismatched sequences with alpha fold sequence & create the fasta from only alphafold sequences
@@ -444,18 +522,19 @@ def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=Fals
     """
 
     if compare:
-        compare_sequence(Constants.ROOT + "uniprot/uniprot_sprot.fasta", save=True) #1
-        filtered_sequences(Constants.ROOT + "uniprot/uniprot_sprot.fasta") #2
-        compare_sequence(Constants.ROOT + "uniprot/cleaned.fasta", save=False) #3
+        compare_sequence(Constants.ROOT + "uniprot/uniprot_sprot.fasta", save=True)  # 1
+        filtered_sequences(Constants.ROOT + "uniprot/uniprot_sprot.fasta")  # 2 create cleaned.fasta
+        compare_sequence(Constants.ROOT + "uniprot/cleaned.fasta", save=False)  # 3
 
     if curate_protein_goterms:
         get_protein_go(uniprot_sprot_dat=Constants.ROOT + "uniprot/uniprot_sprot.dat",
-                       save_path=Constants.ROOT + "protein2go.csv") #4
+                       save_path=Constants.ROOT + "protein2go.csv")  # 4 contains proteins and go terms.
 
     if generate_go_count:
-        go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r')) #5
-        protein_go = Constants.ROOT + "protein2go.csv"
-        protein2go, go2info = generate_go_counts(fname=protein_go, go_graph=go_graph)
+        cleaned_proteins = fasta_to_dictionary(Constants.ROOT + "uniprot/cleaned.fasta")
+        go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))  # 5
+        protein2go, go2info = generate_go_counts(fname=Constants.ROOT + "protein2go.csv", go_graph=go_graph,
+                                                 cleaned_proteins=list(cleaned_proteins.keys()))
         pickle_save(protein2go, Constants.ROOT + "protein2go")
         pickle_save(go2info, Constants.ROOT + "go2info")
 
@@ -463,7 +542,7 @@ def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=Fals
     go2info = pickle_load(Constants.ROOT + "go2info")
 
     print("Writing output")
-    write_output_files(protein2go, go2info, seq_id=0.95)
+    write_output_files(protein2go, go2info, seq_id=seq_id)
 
     if generate_msa:
         fasta_file = Constants.ROOT + "cleaned.fasta"
@@ -474,12 +553,34 @@ def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=Fals
         fasta_file = Constants.ROOT + "cleaned.fasta"
         fasta_for_esm(protein2go, fasta_file)
 
-
-pipeline(compare=False,
-         curate_protein_goterms=False,
-         generate_go_count=False,
-         generate_msa=False,
-         generate_esm=False)
+# print(count_proteins(Constants.ROOT + "uniprot/{}.fasta".format("target_and_sequence")))
+#
 
 
-# print(get_proteins_from_fasta("/data/pycharm/TransFunData/data/0.95/mmseq/fasta_0.95")[67594])
+seq = [0.3, 0.5, 0.9, 0.95]
+for i in seq:
+    pipeline(compare=False,
+             curate_protein_goterms=False,
+             generate_go_count=False,
+             generate_msa=False,
+             generate_esm=False,
+             seq_id=i)
+
+
+exit()
+groups = ['molecular_function', 'cellular_component', 'biological_process']
+
+for i in seq:
+    for j in groups:
+
+        train = pd.read_pickle(Constants.ROOT + "{}/{}/train.pickle".format(i, j))
+        valid = set(pd.read_pickle(Constants.ROOT + "{}/{}/valid.pickle".format(i, j)))
+        test_cluster,_ = collect_test_clusters(Constants.ROOT + "{}/mmseq/final_clusters.csv".format(i))
+        test = collect_test()
+        print(i, j, len(test_cluster), len(test), len(test_cluster - test), len(test - test_cluster))
+
+        # assert len(train.intersection(test_cluster)) == 0
+        # assert len(train.intersection(test)) == 0
+
+        assert len(valid.intersection(test_cluster)) == 0
+        assert len(valid.intersection(test)) == 0
