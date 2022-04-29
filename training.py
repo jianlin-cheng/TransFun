@@ -25,7 +25,7 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
 os.environ["WANDB_MODE"] = "online"
-# wandb.init(project="frimpong")
+wandb.init(project="frimpong")
 
 
 parser = argparse.ArgumentParser()
@@ -202,9 +202,9 @@ def train(epoch):
         # train_acc = 100 * correct / total
         # train_loss = train_loss / count
         #
-            # wandb.log({"train_acc": accuracy, "train_loss": train_loss,
-            #            "precision": precision, "recall": recall,
-            #            "f1": f1})
+            wandb.log({"train_acc": accuracy, "train_loss": train_loss,
+                       "precision": precision, "recall": recall,
+                       "f1": f1})
         #
         print("#####     Validating     #####")
         # --- EVALUATE ON VALIDATION SET -------------------------------------
@@ -232,9 +232,9 @@ def train(epoch):
               'val_f1: {:.4f}'.format(val_f1),
               'time: {:.4f}s'.format(time.time() - t))
 
-        # wandb.log({"val_acc": val_acc, "val_loss": val_loss,
-        #            "val_precision": val_precision, "val_recall": val_recall,
-        #            "val_f1": val_f1})
+        wandb.log({"val_acc": val_acc, "val_loss": val_loss,
+                   "val_precision": val_precision, "val_recall": val_recall,
+                   "val_f1": val_f1})
 
 
 def test(loader):
