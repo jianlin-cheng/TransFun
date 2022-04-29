@@ -164,7 +164,7 @@ def get_sequence_from_pdb(pdb_file, chain_id):
     return residues
 
 
-def is_ok(seq, MINLEN=49, MAXLEN=1024):
+def is_ok(seq, MINLEN=49, MAXLEN=1022):
     """
            Checks if sequence is of good quality
            :param MAXLEN:
@@ -172,7 +172,7 @@ def is_ok(seq, MINLEN=49, MAXLEN=1024):
            :param seq:
            :return: None
            """
-    if len(seq) < MINLEN or len(seq) > MAXLEN:
+    if len(seq) < MINLEN or len(seq) >= MAXLEN:
         return False
     for c in seq:
         if c in INVALID_ACIDS:

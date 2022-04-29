@@ -59,6 +59,7 @@ class PDBDataset(Dataset):
 
         self.fasta = fasta_to_dictionary(self.root + 'uniprot/cleaned_missing_target_sequence.fasta')
 
+
         super().__init__(self.root, transform, pre_transform, pre_filter)
 
     @property

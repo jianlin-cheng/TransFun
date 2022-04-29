@@ -26,7 +26,6 @@ class GCN(torch.nn.Module):
     def forward(self, data):
         # 1. Obtain node embeddings
         x, edge_index = data.embedding_features_per_residue, data.edge_index
-
         x = self.bn1(F.relu(self.conv1(x, edge_index)))
         x = self.bn2(F.relu(self.conv2(x, edge_index)))
         x = self.bn3(self.conv3(x, edge_index))
@@ -39,9 +38,9 @@ class GCN(torch.nn.Module):
 
         # 2. Readout layer
         x = global_mean_pool(x, data.batch)  # [batch_size, hidden_channels]
-        print(data.embedding_features_per_sequence.shape)
-        y = self.fc1 (data.embedding_features_per_sequence)
-        print(y.shape)
+        # print(data.embedding_features_per_sequence.shape)
+        y = self.fc1(data.embedding_features_per_sequence)
+        # print(y.shape)
         x += y
 
         # 3. Apply a final classifier
