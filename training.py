@@ -116,7 +116,7 @@ total = sum(class_weights)
 class_weights = [total/i for i in class_weights]
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 # weights = 1 / (weights / torch.min(weights))
-train_dataloader = DataLoader(dataset, batch_size=1, drop_last=False, shuffle=True)
+train_dataloader = DataLoader(dataset, batch_size=40, drop_last=False, shuffle=True)
 
 
 kwargs = {
@@ -125,7 +125,7 @@ kwargs = {
     'session': 'valid'
 }
 val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-valid_dataloader = DataLoader(val_dataset, batch_size=1, drop_last=False, shuffle=True)
+valid_dataloader = DataLoader(val_dataset, batch_size=40, drop_last=False, shuffle=True)
 
 
 # print(f'Dataset: {dataset}:')
