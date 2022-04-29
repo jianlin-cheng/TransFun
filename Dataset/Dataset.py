@@ -47,7 +47,7 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
                     self.processed_file_list.append('{}.pt'.format(j))
         elif self.session == "valid":
-            self.data = pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session))
+            self.data = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session)))
             for i in self.data:
                 self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                 self.processed_file_list.append('{}.pt'.format(i))
@@ -174,8 +174,12 @@ class PDBDataset(Dataset):
         return len(self.data)
 
     def get(self, idx):
-        rep = random.sample(self.data[idx], 1)[0]
-        return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+        if self.session == "train":
+            rep = random.sample(self.data[idx], 1)[0]
+            return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+        elif self.session == "valid":
+            rep = self.data[idx]
+            return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
 
 def load_dataset(root=None, **kwargs):
