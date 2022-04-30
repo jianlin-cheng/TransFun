@@ -1,6 +1,9 @@
 import math
 import os, subprocess
+import shutil
+
 import pandas as pd
+import torch
 from Bio import SeqIO
 import pickle
 
@@ -187,150 +190,6 @@ def is_cafa_target(org):
 def is_exp_code(code):
     return code in Constants.exp_evidence_codes
 
-
-class Ontology(object):
-
-    def __init__(self, filename=Constants.ROOT + 'obo/go.obo', with_rels=False):
-        self.ont = self.load(filename, with_rels)
-        self.ic = None
-
-    def has_term(self, term_id):
-        return term_id in self.ont
-
-    def get_term(self, term_id):
-        if self.has_term(term_id):
-            return self.ont[term_id]
-        return None
-
-    def calculate_ic(self, annots):
-        cnt = Counter()
-        for x in annots:
-            cnt.update(x)
-        self.ic = {}
-        for go_id, n in cnt.items():
-            parents = self.get_parents(go_id)
-            if len(parents) == 0:
-                min_n = n
-            else:
-                min_n = min([cnt[x] for x in parents])
-
-            self.ic[go_id] = math.log(min_n / n, 2)
-
-    def get_ic(self, go_id):
-        if self.ic is None:
-            raise Exception('Not yet calculated')
-        if go_id not in self.ic:
-            return 0.0
-        return self.ic[go_id]
-
-    def load(self, filename, with_rels):
-        ont = dict()
-        obj = None
-        with open(filename, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                if line == '[Term]':
-                    if obj is not None:
-                        ont[obj['id']] = obj
-                    obj = dict()
-                    obj['is_a'] = list()
-                    obj['part_of'] = list()
-                    obj['regulates'] = list()
-                    obj['alt_ids'] = list()
-                    obj['is_obsolete'] = False
-                    continue
-                elif line == '[Typedef]':
-                    if obj is not None:
-                        ont[obj['id']] = obj
-                    obj = None
-                else:
-                    if obj is None:
-                        continue
-                    l = line.split(": ")
-                    if l[0] == 'id':
-                        obj['id'] = l[1]
-                    elif l[0] == 'alt_id':
-                        obj['alt_ids'].append(l[1])
-                    elif l[0] == 'namespace':
-                        obj['namespace'] = l[1]
-                    elif l[0] == 'is_a':
-                        obj['is_a'].append(l[1].split(' ! ')[0])
-                    elif with_rels and l[0] == 'relationship':
-                        it = l[1].split()
-                        # add all types of relationships
-                        obj['is_a'].append(it[1])
-                    elif l[0] == 'name':
-                        obj['name'] = l[1]
-                    elif l[0] == 'is_obsolete' and l[1] == 'true':
-                        obj['is_obsolete'] = True
-            if obj is not None:
-                ont[obj['id']] = obj
-        for term_id in list(ont.keys()):
-            for t_id in ont[term_id]['alt_ids']:
-                ont[t_id] = ont[term_id]
-            if ont[term_id]['is_obsolete']:
-                del ont[term_id]
-        for term_id, val in ont.items():
-            if 'children' not in val:
-                val['children'] = set()
-            for p_id in val['is_a']:
-                if p_id in ont:
-                    if 'children' not in ont[p_id]:
-                        ont[p_id]['children'] = set()
-                    ont[p_id]['children'].add(term_id)
-        return ont
-
-    def get_anchestors(self, term_id):
-        if term_id not in self.ont:
-            return set()
-        term_set = set()
-        q = deque()
-        q.append(term_id)
-        while len(q) > 0:
-            t_id = q.popleft()
-            if t_id not in term_set:
-                term_set.add(t_id)
-                for parent_id in self.ont[t_id]['is_a']:
-                    if parent_id in self.ont:
-                        q.append(parent_id)
-        return term_set
-
-    def get_parents(self, term_id):
-        if term_id not in self.ont:
-            return set()
-        term_set = set()
-        for parent_id in self.ont[term_id]['is_a']:
-            if parent_id in self.ont:
-                term_set.add(parent_id)
-        return term_set
-
-    def get_namespace_terms(self, namespace):
-        terms = set()
-        for go_id, obj in self.ont.items():
-            if obj['namespace'] == namespace:
-                terms.add(go_id)
-        return terms
-
-    def get_namespace(self, term_id):
-        return self.ont[term_id]['namespace']
-
-    def get_term_set(self, term_id):
-        if term_id not in self.ont:
-            return set()
-        term_set = set()
-        q = deque()
-        q.append(term_id)
-        while len(q) > 0:
-            t_id = q.popleft()
-            if t_id not in term_set:
-                term_set.add(t_id)
-                for ch_id in self.ont[t_id]['children']:
-                    q.append(ch_id)
-        return term_set
-
-
 def read_test_set(file_name):
     with open(file_name) as file:
         lines = file.readlines()
@@ -426,3 +285,38 @@ def create_cluster(seq_identity=None):
         computed = computed[computed['primary_accession'].isin(cluster)]
 
     return computed
+
+
+def save_ckp(state, is_best, checkpoint_path, best_model_path):
+    """
+    state: checkpoint we want to save
+    is_best: is this the best checkpoint; min validation loss
+    checkpoint_path: path to save checkpoint
+    best_model_path: path to save best model
+    """
+    f_path = checkpoint_path
+    # save checkpoint data to the path given, checkpoint_path
+    torch.save(state, f_path)
+    # if it is a best model, min validation loss
+    if is_best:
+        best_fpath = best_model_path
+        # copy that checkpoint file to best path given, best_model_path
+        shutil.copyfile(f_path, best_fpath)
+
+
+def load_ckp(checkpoint_fpath, model, optimizer):
+    """
+    checkpoint_path: path to save checkpoint
+    model: model that we want to load checkpoint parameters into
+    optimizer: optimizer we defined in previous training
+    """
+    # load check point
+    checkpoint = torch.load(checkpoint_fpath)
+    # initialize state_dict from checkpoint to model
+    model.load_state_dict(checkpoint['state_dict'])
+    # initialize optimizer from checkpoint to optimizer
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    # initialize valid_loss_min from checkpoint to valid_loss_min
+    valid_loss_min = checkpoint['valid_loss_min']
+    # return model, optimizer, epoch value, min validation loss
+    return model, optimizer, checkpoint['epoch'], valid_loss_min.item()
