@@ -9,7 +9,6 @@ class GCN(torch.nn.Module):
     def __init__(self, input_features, hidden_channels_1, hidden_channels_2,
                  hidden_channels_3, num_classes):
         super(GCN, self).__init__()
-        print(input_features)
         # torch.manual_seed(12345)
         self.conv1 = GCNConv(input_features, hidden_channels_1)
         self.conv2 = GCNConv(hidden_channels_1, hidden_channels_2)
