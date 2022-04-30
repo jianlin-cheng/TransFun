@@ -19,7 +19,7 @@ from torch_geometric.loader import DataLoader
 import pandas as pd
 from collections import Counter
 
-from preprocessing.utils import pickle_save, pickle_load
+from preprocessing.utils import pickle_save, pickle_load, save_ckp
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
@@ -120,12 +120,12 @@ train_dataloader = DataLoader(dataset, batch_size=40, drop_last=False, shuffle=T
 
 
 kwargs = {
-    'seq_id': 0.9,
+    'seq_id': 0.3,
     'ont': 'molecular_function',
     'session': 'valid'
 }
 val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-valid_dataloader = DataLoader(val_dataset, batch_size=40, drop_last=False, shuffle=True)
+valid_dataloader = DataLoader(val_dataset, batch_size=20, drop_last=False, shuffle=True)
 
 
 # print(f'Dataset: {dataset}:')
@@ -150,91 +150,120 @@ f1score = torchmetrics.F1()
 criterion = torch.nn.BCEWithLogitsLoss(reduction='none')
 criterion = torch.nn.BCELoss(reduction='none')
 
-
-def train(epoch):
-    t = time.time()
-    with torch.autograd.set_detect_anomaly(True):
-        train_loss, train_acc = 0.0, 0.0
-        model.train()
-        count = 0.
-        total = 0.
-        correct = 0.
-        for data in train_dataloader:
-            optimizer.zero_grad()
-
-            output = model(data.to(device))
-
-            # print(torch.sum(output, dim=0), torch.sum(output, dim=0).shape)
-            # print(torch.sum(output, dim=1), torch.sum(output, dim=1).shape)
-            #
-            # exit()
+valid_loss_min = np.Inf
 
 
-            loss = criterion(output, data.molecular_function)
-            loss = (loss * class_weights).mean()
-            # writer.add_scalar("Loss/train", loss, epoch)
+def train(start_epoch, valid_loss_min_input):
 
-            loss.backward()
-            optimizer.step()
-            # optimizer.zero_grad()
+    valid_loss_min = valid_loss_min_input
 
-            train_loss = loss.data.item()
-            accuracy = accuracy_score(data.molecular_function.cpu(), output.cpu() > 0.5)
-            precision = precision_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
-            recall = recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
-            f1 = f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+    for epoch in range(start_epoch, args.epochs):
 
-            # pred = (output > 0.5).float()
-            # correct += (pred == data.molecular_function).float().sum()
-            #
-            # count += 1
-            # total += data.molecular_function.size(1) * data.molecular_function.size(0)
+        # initialize variables to monitor training and validation loss
+        epoch_loss, epoch_precision, epoch_recall, epoch_accuracy, epoch_f1, train_batches = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        val_loss, val_precision, val_recall, val_accuracy, val_f1, val_batches = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+        t = time.time()
+        with torch.autograd.set_detect_anomaly(True):
+
+            ###################
+            # train the model #
+            ###################
+            model.train()
+            for batch_idx, data in enumerate(train_dataloader):
+
+                print(batch_idx, data)
+                continue
+
+                optimizer.zero_grad()
+                output = model(data.to(device))
+
+                loss = criterion(output, data.molecular_function)
+                loss = (loss * class_weights).mean()
+
+                loss.backward()
+                optimizer.step()
+
+                epoch_loss += loss.data.item()
+                epoch_accuracy += accuracy_score(data.molecular_function.cpu(), output.cpu() > 0.5)
+                epoch_precision += precision_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+                epoch_recall += recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+                epoch_f1 += f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+                mini_batches += 1
+
+            epoch_loss = epoch_loss/mini_batches
+            epoch_accuracy = epoch_accuracy / mini_batches
+            epoch_precision = epoch_precision / mini_batches
+            epoch_recall = epoch_recall / mini_batches
+            epoch_f1 = epoch_f1 / mini_batches
 
             print('Epoch: {:04d}'.format(epoch),
-                  'train_loss: {:.4f}'.format(train_loss),
-                  'train_acc: {:.4f}'.format(accuracy),
-                  'precision: {:.4f}'.format(precision),
-                  'recall: {:.4f}'.format(recall),
-                  'f1: {:.4f}'.format(f1),
+                  'train_loss: {:.4f}'.format(epoch_loss),
+                  'train_acc: {:.4f}'.format(epoch_accuracy),
+                  'precision: {:.4f}'.format(epoch_precision),
+                  'recall: {:.4f}'.format(epoch_recall),
+                  'f1: {:.4f}'.format(epoch_f1),
                   'time: {:.4f}s'.format(time.time() - t))
 
-        # pass
-        # train_acc = 100 * correct / total
-        # train_loss = train_loss / count
-        #
-            wandb.log({"train_acc": accuracy, "train_loss": train_loss,
-                       "precision": precision, "recall": recall,
-                       "f1": f1})
-        #
-        print("#####     Validating     #####")
-        # --- EVALUATE ON VALIDATION SET -------------------------------------
-        model.eval()
-        val_loss, val_acc = 0.0, 0.0
-        count = 0
-        total = 0.
-        correct = 0.
-        for data in valid_dataloader:
-            output = model(data.to(device))
-            val_loss = criterion(output, data.molecular_function)
-            val_loss = (val_loss * class_weights).mean()
+            wandb.log({"train_acc": epoch_accuracy,
+                       "train_loss": epoch_loss,
+                       "precision": epoch_precision,
+                       "recall": epoch_recall,
+                       "f1": epoch_f1})
 
-            val_loss = val_loss.data.item()
-            val_acc = accuracy_score(data.molecular_function.cpu(), output.cpu() > 0.5)
-            val_precision = precision_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
-            val_recall = recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
-            val_f1 = f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
-        #
-        print('Epoch: {:04d}'.format(epoch),
-              'val_acc: {:.4f}'.format(val_acc),
-              'val_loss: {:.4f}'.format(val_loss),
-              'val_precision: {:.4f}'.format(val_precision),
-              'val_recall: {:.4f}'.format(val_recall),
-              'val_f1: {:.4f}'.format(val_f1),
-              'time: {:.4f}s'.format(time.time() - t))
+            print(" ---------- EVALUATE ON VALIDATION SET ----------")
+            mini_batches = 0.0
+            model.eval()
+            for data in valid_dataloader:
 
-        wandb.log({"val_acc": val_acc, "val_loss": val_loss,
-                   "val_precision": val_precision, "val_recall": val_recall,
-                   "val_f1": val_f1})
+                output = model(data.to(device))
+
+                _val_loss = criterion(output, data.molecular_function)
+                _val_loss = (_val_loss * class_weights).mean()
+
+                val_loss += _val_loss.data.item()
+                val_accuracy += accuracy_score(data.molecular_function.cpu(), output.cpu() > 0.5)
+                val_precision += precision_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+                val_recall += recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+                val_f1 += f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
+                mini_batches += 1
+
+            val_loss = val_loss / mini_batches
+            val_accuracy = val_accuracy / mini_batches
+            val_precision = val_precision / mini_batches
+            val_recall = val_recall / mini_batches
+            val_f1 = val_f1 / mini_batches
+
+            print('Epoch: {:04d}'.format(epoch),
+                  'val_acc: {:.4f}'.format(val_accuracy),
+                  'val_loss: {:.4f}'.format(val_loss),
+                  'val_precision: {:.4f}'.format(val_precision),
+                  'val_recall: {:.4f}'.format(val_recall),
+                  'val_f1: {:.4f}'.format(val_f1),
+                  'time: {:.4f}s'.format(time.time() - t))
+
+            wandb.log({"val_acc": val_accuracy, "val_loss": val_loss,
+                       "val_precision": val_precision, "val_recall": val_recall,
+                       "val_f1": val_f1})
+
+            checkpoint = {
+                'epoch': epoch + 1,
+                'valid_loss_min': val_loss,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+            }
+
+            # # save checkpoint
+            save_ckp(checkpoint, False, Constants.ROOT + 'model_checkpoint',
+                     Constants.ROOT + 'best_model')
+
+            ## TODO: save the model if validation loss has decreased
+            if val_loss <= valid_loss_min:
+                print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(valid_loss_min, valid_loss))
+                # save checkpoint as best model
+                save_ckp(checkpoint, True, Constants.ROOT + 'model_checkpoint',
+                         Constants.ROOT + 'best_model')
+                valid_loss_min = val_loss
 
 
 def test(loader):
@@ -247,9 +276,4 @@ def test(loader):
         correct += int((pred == data.molecular_function).sum())  # Check against ground-truth labels.
     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
 
-
-for epoch in range(1, args.epochs):
-    train(epoch)
-
-# writer.flush()
-# writer.close()
+train(1, np.Inf)
