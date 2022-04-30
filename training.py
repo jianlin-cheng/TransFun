@@ -55,7 +55,7 @@ if args.cuda:
 
 
 kwargs = {
-    'seq_id': 0.3,
+    'seq_id': 0.9,
     'ont': 'molecular_function',
     'session': 'train'
 }
@@ -116,7 +116,7 @@ total = sum(class_weights)
 class_weights = [total/i for i in class_weights]
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 # weights = 1 / (weights / torch.min(weights))
-train_dataloader = DataLoader(dataset, batch_size=40, drop_last=False, shuffle=True)
+train_dataloader = DataLoader(dataset, batch_size=250, drop_last=False, shuffle=True)
 
 
 kwargs = {
@@ -124,8 +124,8 @@ kwargs = {
     'ont': 'molecular_function',
     'session': 'valid'
 }
-val_dataset = load_dataset(root='/data/pycharm/TransFunData/data/', **kwargs)
-valid_dataloader = DataLoader(val_dataset, batch_size=40, drop_last=False, shuffle=True)
+val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
+valid_dataloader = DataLoader(val_dataset, batch_size=250, drop_last=False, shuffle=True)
 
 
 # print(f'Dataset: {dataset}:')
@@ -224,17 +224,17 @@ def train(epoch):
             val_recall = recall_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
             val_f1 = f1_score(data.molecular_function.cpu(), output.cpu() > 0.5, average="samples")
         #
-        print('Epoch: {:04d}'.format(epoch),
-              'val_acc: {:.4f}'.format(val_acc),
-              'val_loss: {:.4f}'.format(val_loss),
-              'val_precision: {:.4f}'.format(val_precision),
-              'val_recall: {:.4f}'.format(val_recall),
-              'val_f1: {:.4f}'.format(val_f1),
-              'time: {:.4f}s'.format(time.time() - t))
+            print('Epoch: {:04d}'.format(epoch),
+                  'val_acc: {:.4f}'.format(val_acc),
+                  'val_loss: {:.4f}'.format(val_loss),
+                  'val_precision: {:.4f}'.format(val_precision),
+                  'val_recall: {:.4f}'.format(val_recall),
+                  'val_f1: {:.4f}'.format(val_f1),
+                  'time: {:.4f}s'.format(time.time() - t))
 
-        wandb.log({"val_acc": val_acc, "val_loss": val_loss,
-                   "val_precision": val_precision, "val_recall": val_recall,
-                   "val_f1": val_f1})
+            wandb.log({"val_acc": val_acc, "val_loss": val_loss,
+                       "val_precision": val_precision, "val_recall": val_recall,
+                       "val_f1": val_f1})
 
 
 def test(loader):
