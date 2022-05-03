@@ -18,7 +18,7 @@ from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
 os.environ["WANDB_MODE"] = "online"
-# wandb.init(project="frimpong")
+wandb.init(project="frimpong")
 
 
 parser = argparse.ArgumentParser()
@@ -31,13 +31,12 @@ parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight dec
 parser.add_argument('--hidden1', type=int, default=512, help='Number of hidden units.')
 parser.add_argument('--hidden2', type=int, default=64, help='Number of hidden units.')
 parser.add_argument('--hidden3', type=int, default=32, help='Number of hidden units.')
-parser.add_argument('--train_batch', type=int, default=250, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=200, help='Validation batch size.')
+parser.add_argument('--train_batch', type=int, default=40, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=20, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.3, help='Sequence Identity (Sequence Identity).')
+parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
 parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
-device = 'cpu'
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 if args.cuda:
@@ -254,7 +253,7 @@ loaders = {
     'train': train_dataloader,
     'valid': valid_dataloader
 }
-ckp_pth = Constants.ROOT + 'model_checkpoint/current_checkpoint.pt'
+ckp_pth = Constants.ROOT + 'model_checkpoint'
 
 if os.path.exists(ckp_pth):
     print("Loading model checkpoint")
