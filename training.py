@@ -18,7 +18,7 @@ from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
 os.environ["WANDB_MODE"] = "online"
-# wandb.init(project="frimpong")
+wandb.init(project="frimpong")
 
 
 parser = argparse.ArgumentParser()
@@ -254,7 +254,7 @@ loaders = {
     'train': train_dataloader,
     'valid': valid_dataloader
 }
-ckp_pth = Constants.ROOT + 'model_checkpoint/current_checkpoint.pt'
+ckp_pth = Constants.ROOT + 'model_checkpoint'
 
 if os.path.exists(ckp_pth):
     print("Loading model checkpoint")
