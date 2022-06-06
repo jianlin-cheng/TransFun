@@ -287,6 +287,34 @@ def create_cluster(seq_identity=None):
     return computed
 
 
+def class_distribution_counter(**kwargs):
+    """
+        Count the number of proteins for each GO term in training set.
+    """
+    data = pickle_load(Constants.ROOT + "{}/{}/{}".format(kwargs['seq_id'], kwargs['ont'], kwargs['session']))
+
+    all_proteins = []
+    for i in data:
+        all_proteins.extend(data[i])
+
+    annot = pd.read_csv(Constants.ROOT + 'annot.tsv', delimiter='\t')
+    annot = annot.where(pd.notnull(annot), None)
+    annot = annot[annot['Protein'].isin(all_proteins)]
+    annot = pd.Series(annot[kwargs['ont']].values, index=annot['Protein']).to_dict()
+
+    terms = []
+    for i in annot:
+        terms.extend(annot[i].split(","))
+
+    counter = Counter(terms)
+
+    # for i in counter.most_common():
+    #     print(i)
+    # print("# of ontologies is {}".format(len(counter)))
+
+    return counter
+
+
 def save_ckp(state, is_best, checkpoint_path, best_model_path):
     """
     state: checkpoint we want to save

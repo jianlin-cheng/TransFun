@@ -176,6 +176,7 @@ class PDBDataset(Dataset):
     def get(self, idx):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
+            # print(rep)
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
         elif self.session == "valid":
             rep = self.data[idx]
