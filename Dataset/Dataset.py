@@ -138,9 +138,6 @@ class PDBDataset(Dataset):
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
 
             node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
-            print(sequence_letters)
-
-            exit()
 
             assert self.fasta[protein][3] == sequence_letters
 

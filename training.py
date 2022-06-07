@@ -40,7 +40,7 @@ parser.add_argument('--train_batch', type=int, default=10, help='Training batch 
 parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -52,14 +52,26 @@ if args.cuda:
 #
 #
 
-wandb.init(project="transfun_tests", entity='frimpz',
-           name="{}_{}___ ".format(args.seq, args.ont))
+# wandb.init(project="transfun_tests", entity='frimpz',
+#            name="{}_{}___ ".format(args.seq, args.ont))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
+if args.ont == 'molecular_function':
+    args.hidden1 = 1000
+    args.hidden1 = 800
+    args.hidden1 = 600
+elif args.ont == 'cellular_component':
+    args.hidden1 = 1000
+    args.hidden1 = 800
+    args.hidden1 = 600
+elif args.ont == 'biological_process':
+    args.hidden1 = 1000
+    args.hidden1 = 1000
+    args.hidden1 = 1000
 
 def create_class_weights(cnter):
     class_weight_path = Constants.ROOT + "{}/{}/class_weights".format(kwargs['seq_id'], kwargs['ont'])
@@ -191,6 +203,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 # epoch_recall += recall_score(getattr(data, args.ont)[:, :600].cpu(), output.cpu() > 0.5, average="samples")
                 # epoch_f1 += f1_score(getattr(data, args.ont)[:, :600].cpu(), output.cpu() > 0.5, average="samples")
 
+            print(f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples"))
             epoch_accuracy = epoch_accuracy / len(loaders['train'])
             epoch_precision = epoch_precision / len(loaders['train'])
             epoch_recall = epoch_recall / len(loaders['train'])
