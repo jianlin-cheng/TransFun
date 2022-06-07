@@ -1,3 +1,4 @@
+import math
 import os
 import numpy as np
 import torch.optim as optim
@@ -51,8 +52,8 @@ if args.cuda:
 #
 #
 
-# wandb.init(project="transfun_tests", entity='frimpz',
-#            name="{}_{}_leaky".format(args.seq, args.ont))
+wandb.init(project="transfun_tests", entity='frimpz',
+           name="{}_{}___ ".format(args.seq, args.ont))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -73,9 +74,10 @@ def create_class_weights(cnter):
         pickle_save(class_weights, class_weight_path)
 
     total = sum(class_weights)# /100
-    class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([1.0 / i for i in class_weights], dtype=torch.float).to(device)
 
+    print(class_weights)
     return class_weights
 
 
@@ -93,9 +95,9 @@ class_weights = create_class_weights(class_distribution_counter(**kwargs))
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
-                              drop_last=True,
-                              #sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
-                              shuffle=True)
+                              drop_last=True
+                              # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
+                              ,shuffle=True)
 
 
 kwargs['session'] = 'valid'
