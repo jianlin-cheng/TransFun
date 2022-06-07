@@ -17,7 +17,6 @@ from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
 os.environ["WANDB_MODE"] = "online"
@@ -27,13 +26,13 @@ parser.add_argument('--no-cuda', action='store_true', default=False, help='Disab
 parser.add_argument('--fastmode', action='store_true', default=False, help='Validate during training pass.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=200, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
-parser.add_argument('--weight_decay', type=float, default=0, help='Weight decay (L2 loss on parameters).')
+parser.add_argument('--lr', type=float, default=0.01, help='Initial learning rate.')
+parser.add_argument('--weight_decay', type=float, default=0.0001, help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--hidden1', type=int, default=512, help='Number of hidden units.')
 parser.add_argument('--hidden2', type=int, default=64, help='Number of hidden units.')
 parser.add_argument('--hidden3', type=int, default=32, help='Number of hidden units.')
-parser.add_argument('--train_batch', type=int, default=40, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=20, help='Validation batch size.')
+parser.add_argument('--train_batch', type=int, default=10, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
 parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
@@ -43,8 +42,8 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 if args.cuda:
     device = 'cuda'
 
-wandb.init(project="transfun", entity='frimpz',
-           name="{}_{}".format(args.seq, args.ont))
+# wandb.init(project="transfun_tests", entity='frimpz',
+#            name="{}_{}".format(args.seq, args.ont))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -98,6 +97,8 @@ def create_class_weights(cnter):
     return class_weights
 
 
+
+
 #########################################################
 # Creating training data #
 #########################################################
@@ -106,6 +107,10 @@ kwargs = {
     'ont': args.ont,
     'session': 'train'
 }
+
+dataset = load_dataset(root=Constants.ROOT, **kwargs)
+train_dataloader = DataLoader(dataset, batch_size=args.train_batch, drop_last=False, shuffle=True)
+exit()
 
 class_weights = create_class_weights(check_counter(**kwargs))
 
@@ -210,36 +215,36 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                     'val_f1: {:.4f}'.format(val_f1),
                     'time: {:.4f}s'.format(time.time() - t))
 
-            wandb.log({"train_acc": epoch_accuracy,
-                       "train_loss": epoch_loss,
-                       "precision": epoch_precision,
-                       "recall": epoch_recall,
-                       "f1": epoch_f1,
-                       "val_acc": val_accuracy,
-                       "val_loss": val_loss,
-                       "val_precision": val_precision,
-                       "val_recall": val_recall,
-                       "val_f1": val_f1})
+            # wandb.log({"train_acc": epoch_accuracy,
+            #            "train_loss": epoch_loss,
+            #            "precision": epoch_precision,
+            #            "recall": epoch_recall,
+            #            "f1": epoch_f1,
+            #            "val_acc": val_accuracy,
+            #            "val_loss": val_loss,
+            #            "val_precision": val_precision,
+            #            "val_recall": val_recall,
+            #            "val_f1": val_f1})
 
-            checkpoint = {
-                'epoch': epoch,
-                'valid_loss_min': val_loss,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }
+            # checkpoint = {
+            #     'epoch': epoch,
+            #     'valid_loss_min': val_loss,
+            #     'state_dict': model.state_dict(),
+            #     'optimizer': optimizer.state_dict(),
+            # }
 
             # # save checkpoint
-            save_ckp(checkpoint, False, ckp_pth,
-                     ckp_dir + "best_model.pt")
-
-            if val_loss <= min_val_loss:
-                print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'. \
-                      format(min_val_loss, val_loss))
-
-                # save checkpoint as best model
-                save_ckp(checkpoint, True, ckp_pth,
-                     ckp_dir + "best_model.pt")
-                min_val_loss = val_loss
+            # save_ckp(checkpoint, False, ckp_pth,
+            #          ckp_dir + "best_model.pt")
+            #
+            # if val_loss <= min_val_loss:
+            #     print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'. \
+            #           format(min_val_loss, val_loss))
+            #
+            #     # save checkpoint as best model
+            #     save_ckp(checkpoint, True, ckp_pth,
+            #          ckp_dir + "best_model.pt")
+            #     min_val_loss = val_loss
 
     return model
 
@@ -249,23 +254,23 @@ loaders = {
     'valid': valid_dataloader
 }
 
-ckp_dir = Constants.ROOT + '{}/{}/model_checkpoint/'.format(args.seq, args.ont)
-ckp_pth = ckp_dir + "current_checkpoint.pt"
-if os.path.exists(ckp_pth):
-    print("Loading model checkpoint")
-    model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
-else:
-    if not os.path.exists(ckp_dir):
-        os.makedirs(ckp_dir)
+# ckp_dir = Constants.ROOT + '{}/{}/model_checkpoint/'.format(args.seq, args.ont)
+# ckp_pth = ckp_dir + "current_checkpoint.pt"
+# if os.path.exists(ckp_pth):
+#     print("Loading model checkpoint")
+#     model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
+# else:
+#     if not os.path.exists(ckp_dir):
+#         os.makedirs(ckp_dir)
 
 print("Training model on epoch {}, with minimum validation loss as {}".format(current_epoch, min_val_loss))
 
 
-wandb.config = {
-    "learning_rate": args.lr,
-    "epochs": current_epoch,
-    "batch_size": args.train_batch
-}
+# wandb.config = {
+#     "learning_rate": args.lr,
+#     "epochs": current_epoch,
+#     "batch_size": args.train_batch
+# }
 
 trained_model = train(current_epoch, min_val_loss,
                       model=model, optimizer=optimizer,

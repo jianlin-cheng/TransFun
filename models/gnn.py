@@ -9,7 +9,8 @@ class GCN(torch.nn.Module):
     def __init__(self, input_features, hidden_channels_1, hidden_channels_2,
                  hidden_channels_3, num_classes):
         super(GCN, self).__init__()
-        # torch.manual_seed(12345)
+        torch.manual_seed(12345)
+
         self.conv1 = GCNConv(input_features, hidden_channels_1)
         self.conv2 = GCNConv(hidden_channels_1, hidden_channels_2)
         self.conv3 = GCNConv(hidden_channels_2, hidden_channels_3)
@@ -29,15 +30,8 @@ class GCN(torch.nn.Module):
         x = self.bn2(F.relu(self.conv2(x, edge_index)))
         x = self.bn3(self.conv3(x, edge_index))
 
-        # x = self.conv1(x, edge_index)
-        # x = x.relu()
-        # x = self.conv2(x, edge_index)
-        # x = x.relu()
-        # x = self.conv3(x, edge_index)
-
         # 2. Readout layer
         x = global_mean_pool(x, data.batch)  # [batch_size, hidden_channels]
-        # print(data.embedding_features_per_sequence.shape)
         y = self.fc1(data.embedding_features_per_sequence)
         # print(y.shape)
         x += y

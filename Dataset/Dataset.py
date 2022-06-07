@@ -37,8 +37,10 @@ class PDBDataset(Dataset):
         self.processed_file_list = []
 
         self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
-        self.annot = self.annot.where(pd.notnull(self.annot), None)
-        self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
+        # print(self.annot)
+        # self.annot = self.annot.where(pd.notnull(self.annot), None)
+        self.annot = self.annot.set_index('Protein').to_dict('index')
+        # self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
 
         if self.session == "train":
             self.data = pickle_load(Constants.ROOT + "{}/{}/{}".format(self.seq_id, self.ont, self.session))
@@ -114,14 +116,19 @@ class PDBDataset(Dataset):
             go_terms = pickle_load(self.root + "/go_terms")
             for ont in onts:
                 terms = go_terms['GO-terms-{}'.format(ont)]
+                tmp = self.annot[protein][ont]
+                if isinstance(tmp, float):
+                    tmp = []
+                elif isinstance(tmp, str):
+                    tmp = tmp.split(',')
                 for term in terms:
-                    if term in self.annot[protein]:
+                    if term in tmp:
                         labels[ont].append(1)
                     else:
                         labels[ont].append(0)
                 ann += sum(labels[ont])
 
-            assert ann/2 == len(self.annot[protein].split(','))
+#            assert ann/2 == len(self.annot[protein].split(','))
 
             for label in labels:
                 labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
@@ -131,6 +138,9 @@ class PDBDataset(Dataset):
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
 
             node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
+            print(sequence_letters)
+
+            exit()
 
             assert self.fasta[protein][3] == sequence_letters
 
@@ -199,7 +209,7 @@ def load_dataset(root=None, **kwargs):
         raise ValueError('Root path is empty, specify root directory')
 
     # PDB URL has 1 attached to it
-    dataset = PDBDataset(root, pre_transform=("KNN", "Edge_weight", "Adjacent_features"), **kwargs)
+    dataset = PDBDataset(root, pre_transform=("Distance", "Edge_weight", "Adjacent_features"), **kwargs)
     return dataset
 
 

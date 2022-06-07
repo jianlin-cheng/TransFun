@@ -7,6 +7,8 @@ import pickle
 import torch
 from biopandas.pdb import PandasPdb
 import torch.nn.functional as F
+from keras.utils import to_categorical
+from keras_preprocessing.sequence import pad_sequences
 
 from Constants import residues, amino_acids
 
@@ -87,14 +89,17 @@ def process_pdbpandas(raw_path, chain_id):
     _residues = pdb_df['residue_name'].to_list()
     _residues = [amino_acids[i] for i in _residues if i != "UNK"]
 
-    sequence_features = torch.tensor([residues[residue] for residue in _residues])
-    sequence_features = F.one_hot(sequence_features, num_classes=len(residues)).to(dtype=torch.float)
+    sequence_features = [[residues[residue] for residue in _residues]]
+
+    sequence_features = pad_sequences(sequence_features, maxlen=1024, truncating='post', padding='post')
+
+    # sequences + padding
+    sequence_features = torch.tensor(to_categorical(sequence_features, num_classes=len(residues) + 1))
+    # sequence_features = F.one_hot(sequence_features, num_classes=len(residues) + 1).to(dtype=torch.int64)
 
     node_coords = torch.tensor(pdb_df[['x_coord', 'y_coord', 'z_coord']].values, dtype=torch.float32)
 
     return node_coords, sequence_features, ''.join(_residues)
-
-
 
     return residues
 

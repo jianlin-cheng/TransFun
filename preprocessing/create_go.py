@@ -458,7 +458,7 @@ def write_output_files(protein2go, go2info, seq_id):
 
     assert len(protein_list.intersection(test_cluster)) == len(protein_list.intersection(collect_test())) == 0
 
-    validation_len = int(0.2 * len(protein_list))
+    validation_len = 5000 #int(0.2 * len(protein_list))
     validation_list = set()
 
     for chain in protein_list:
