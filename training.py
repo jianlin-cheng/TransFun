@@ -7,9 +7,11 @@ from torchviz import make_dot
 
 import Constants
 import wandb
+
 from Dataset.Dataset import load_dataset
 from Sampler.ImbalancedDatasetSampler import ImbalancedDatasetSampler
 from models.gnn import GCN#,# GAT
+
 import argparse
 import torch
 import time
@@ -17,6 +19,8 @@ from torch_geometric.loader import DataLoader
 import pandas as pd
 from collections import Counter
 from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp, class_distribution_counter
+
+
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -40,7 +44,7 @@ parser.add_argument('--train_batch', type=int, default=10, help='Training batch 
 parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -49,8 +53,6 @@ if args.cuda:
 # device = 'cpu'
 # wandb.init(project="transfun", entity='frimpz',
 #            name="{}_{}".format(args.seq, args.ont))
-#
-#
 
 # wandb.init(project="transfun_tests", entity='frimpz',
 #            name="{}_{}___ ".format(args.seq, args.ont))

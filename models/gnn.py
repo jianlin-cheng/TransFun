@@ -87,9 +87,10 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
 
         torch.manual_seed(12345)
+        in_size = 1280
         self.conv1 = GCNConv(input_features, hidden_channels_1, )
-        self.conv2 = GCNConv(input_features + hidden_channels_1, hidden_channels_2, )
-        self.conv3 = GCNConv(input_features + hidden_channels_2, hidden_channels_3, )
+        self.conv2 = GCNConv(in_size + hidden_channels_1, hidden_channels_2, )
+        self.conv3 = GCNConv(in_size + hidden_channels_2, hidden_channels_3, )
 
         self.lin = Linear(hidden_channels_3, num_classes)
         self.bn1 = BatchNorm(hidden_channels_1)
@@ -100,12 +101,12 @@ class GCN(torch.nn.Module):
 
         self.bn4 = BatchNorm(hidden_channels_1 + hidden_channels_2 + 1280 + 1280)
 
-        self.fc1 = torch.nn.Linear(input_features, hidden_channels_1 + hidden_channels_2 + 1280 + 1280)
+        self.fc1 = torch.nn.Linear(in_size, hidden_channels_1 + hidden_channels_2 + 1280 + 1280)
 
-        self.fc2 = torch.nn.Linear(hidden_channels_1 + hidden_channels_2 + 1280 + 1280, 3000)
-        self.bn5 = BatchNorm(3000)
+        self.fc2 = torch.nn.Linear(hidden_channels_1 + hidden_channels_2 + 1280 + 1280, 2000)
+        self.bn5 = BatchNorm(2000)
 
-        self.fc3 = torch.nn.Linear(6000, num_classes)
+        self.fc3 = torch.nn.Linear(4000, num_classes)
         self.bn6 = BatchNorm(num_classes)
 
     def forward_once(self, data):
