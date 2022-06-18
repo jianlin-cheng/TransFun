@@ -30,7 +30,6 @@ class PDBDataset(Dataset):
 
     def __init__(self, root, transform=None, pre_transform=None, pre_filter=None, **kwargs):
 
-        self.edge_types = pre_transform
         self.root = root
         self.seq_id = kwargs.get('seq_id', None)
         self.ont = kwargs.get('ont', None)
@@ -68,7 +67,6 @@ class PDBDataset(Dataset):
                     self.processed_file_list.append('{}.pt'.format(i))
 
         self.fasta = fasta_to_dictionary(self.root + 'uniprot/cleaned_missing_target_sequence.fasta')
-
 
         super().__init__(self.root, transform, pre_transform, pre_filter)
 
@@ -134,7 +132,7 @@ class PDBDataset(Dataset):
                             labels[ont].append(0)
                     ann += sum(labels[ont])
 
-                assert ann/2 == len(self.annot[protein].split(','))
+                assert ann / 2 == len(self.annot[protein].split(','))
 
                 for label in labels:
                     labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
@@ -142,7 +140,6 @@ class PDBDataset(Dataset):
             emb = torch.load(self.root + "/esm1/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
-
 
             node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
 
@@ -175,8 +172,8 @@ class PDBDataset(Dataset):
                         _transforms.append(myKNNGraph(i[1], k=knn, force_undirected=True, ))
                     if i[0] == "DIST":
                         _transforms.append(myRadiusGraph(i[1], r=i[2], loop=False))
-                _transforms.append(myDistanceTransform(edge_types=self.edge_types, norm=True))
-                _transforms.append(AdjacencyFeatures(edge_types=self.edge_types))
+                _transforms.append(myDistanceTransform(edge_types=self.pre_transform, norm=True))
+                _transforms.append(AdjacencyFeatures(edge_types=self.pre_transform))
 
                 pre_transform = T.Compose(_transforms)
                 data = pre_transform(data)

@@ -80,7 +80,6 @@ def generate_data():
                     go_terms[j] = 1
         return go_terms
 
-
     categories = [('molecular_function', 'GO-terms (molecular_function)'),
                   ('biological_process', 'GO-terms (biological_process)'),
                   ('cellular_component', 'GO-terms (cellular_component)')]

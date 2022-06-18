@@ -1,57 +1,10 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, BatchNorm
-from torch.nn import Linear, Softmax, Sigmoid, LSTM, Module, ReLU
+from torch import nn, cat, squeeze, flatten
+from torch_geometric.nn import GCNConv, BatchNorm, GATConv, global_add_pool
+from torch.nn import Linear, Softmax, Sigmoid, ELU, LeakyReLU
 from torch_geometric.nn import global_mean_pool
-from torch.autograd import Variable
 
-
-class GCN(torch.nn.Module):
-    def __init__(self, input_features, hidden_channels_1, hidden_channels_2,
-                 hidden_channels_3, num_classes):
-        super(GCN, self).__init__()
-        # torch.manual_seed(12345)
-        self.conv1 = GCNConv(input_features, hidden_channels_1)
-        self.conv2 = GCNConv(hidden_channels_1, hidden_channels_2)
-        self.conv3 = GCNConv(hidden_channels_2, hidden_channels_3)
-        self.lin = Linear(hidden_channels_3, num_classes)
-        self.bn1 = BatchNorm(hidden_channels_1)
-        self.bn2 = BatchNorm(hidden_channels_2)
-        self.bn3 = BatchNorm(hidden_channels_3)
-        self.softmax = Softmax(dim=0)
-        self.sigm = Sigmoid()
-
-        self.fc1 = torch.nn.Linear(1280, hidden_channels_3)
-
-
-    def forward(self, data):
-        # 1. Obtain node embeddings
-        x, edge_index, edge_weight = data.embedding_features_per_residue, \
-                                     data.edge_index, \
-                                     data.edge_attr[:, 0:1]
-        x = self.bn1(F.relu(self.conv1(x, edge_index, edge_weight=edge_weight)))
-        x = self.bn2(F.relu(self.conv2(x, edge_index, edge_weight=edge_weight)))
-        x = self.bn3(self.conv3(x, edge_index, edge_weight=edge_weight))
-
-        # x = self.conv1(x, edge_index)
-        # x = x.relu()
-        # x = self.conv2(x, edge_index)
-        # x = x.relu()
-        # x = self.conv3(x, edge_index)
-
-        # 2. Readout layer
-        x = global_mean_pool(x, data.batch)  # [batch_size, hidden_channels]
-        # print(data.embedding_features_per_sequence.shape)
-        y = self.fc1(data.embedding_features_per_sequence)
-        # print(y.shape)
-        x += y
-
-        # 3. Apply a final classifier
-        x = F.dropout(x, p=0.2, training=self.training)
-        x = self.lin(x)
-        x = self.sigm(x)
-
-        return x
 
 # class GCN(torch.nn.Module):
 #     def __init__(self, input_features, hidden_channels_1, hidden_channels_2,
@@ -62,127 +15,152 @@ class GCN(torch.nn.Module):
 #         super(GCN, self).__init__()
 #         # torch.manual_seed(12345)
 #
-#         self.batch = 10
-#         self.layers = 5
+#         # num_classes = 378
 #
-#         self.lstm = LSTM(21, 600, self.layers, batch_first=True, bidirectional=True, dropout=0.3)
+#         self.conv1 = GCNConv(input_features, 1000)
+#         self.bn1 = BatchNorm(1000)
+#         self.lin1 = Linear(1280, 1000)
 #
-#         self.final = Linear(600*2, num_classes)
+#         self.conv2 = GCNConv(1000, 800)
+#         self.bn2 = BatchNorm(800)
+#         self.lin2 = Linear(1000, 800)
 #
-#         # self.softmax = Softmax(dim=0)
+#         self.conv3 = GCNConv(800, 600)
+#         self.bn3 = BatchNorm(600)
+#         self.lin3 = Linear(800, 600)
+#
+#         self.final = Linear(800, num_classes)
 #         self.sigm = Sigmoid()
+#
+#         # self.m = nn.LeakyReLU(0.1)
 #
 #     def forward_once(self, per_res, per_seq, seq, edge_index, batch):
-#         # h0 = torch.randn(2 * self.layers, self.batch, 600).to('cpu')
-#         # c0 = torch.randn(2 * self.layers, self.batch, 600).to('cpu')
-#         # output, (hn, cn) = self.lstm(seq, (h0, c0))
-#         output, (hn, cn) = self.lstm(seq)
-#         hn = torch.cat((hn[-2, :, :], hn[-1, :, :]), dim=1)
-#         output = self.final(hn)
-#         output = self.sigm(output)
+#
+#         output = F.relu(self.bn1(self.conv1(per_res, edge_index)))
+#         # output = output + self.lin1(per_res)
+#         output = F.relu(self.bn1(output))
+#
+#         output = F.relu(self.bn2(self.conv2(output, edge_index)))
+#         # output = output + self.lin2(self.lin1(per_res))
+#         output = F.relu(self.bn2(output))
+#
+#         # output = F.relu(self.bn3(self.conv3(output, edge_index)))
+#         # # output = output + self.lin3(self.lin2(self.lin1(per_res)))
+#         # output = F.relu(self.bn3(output))
+#
+#         output = global_mean_pool(output, batch)
+#
+#         output = output + self.lin2(self.lin1(per_seq))
+#         #output = F.relu(self.bn3(output))
+#
+#         output = self.final(output)
+#
 #         return output
 #
+#
 #     def forward(self, data):
+#         # 1. Obtain node embeddings
+#
+#         # print(data.embedding_features_per_sequence.shape)
+#         # print(data.sequence_features.shape)
+#         # print(data.embedding_features_per_residue.shape)
+#         # print(data.pos.shape)
+#
 #         per_res, per_seq, seq, edge_index, batch = data.embedding_features_per_residue, \
-#                                                    data.embedding_features_per_sequence, \
-#                                                    data.sequence_features, \
-#                                                    data.edge_index, \
-#                                                    data.batch
-#         output = self.forward_once(per_res, per_seq, seq, edge_index, batch)
-#         # lstm embedding
+#                                             data.embedding_features_per_sequence, \
+#                                             data.sequence_features, \
+#                                             data.edge_index, \
+#                                             data.batch
+#
+#         out_1 = self.forward_once(per_res, per_seq, seq, edge_index, batch)
+#         # out_2 = self.forward_once(per_res, per_seq, seq, edge_index, batch)
+#
+#         # output = self.final(out_1 + out_2)
+#
+#         output = self.sigm(out_1)
 #         return output
 
 
-# class MyLSTM(Module):
-#     def __init__(self, num_classes, input_size, hidden_size, num_layers, seq_length):
-#         super(MyLSTM, self).__init__()
-#         self.num_classes = num_classes  # number of classes
-#         self.num_layers = num_layers  # number of layers
-#         self.input_size = input_size  # input size
-#         self.hidden_size = hidden_size  # hidden state
-#         self.seq_length = seq_length  # sequence length
-#
-#         self.lstm = LSTM(input_size=input_size, hidden_size=hidden_size,
-#                             num_layers=num_layers, batch_first=True)  # lstm
-#         self.fc_1 = Linear(hidden_size, 800)  # fully connected 1
-#         self.fc = Linear(800, num_classes)  # fully connected last layer
-#
-#         self.relu = ReLU()
-#         self.sigm = Sigmoid()
-#
-#     def forward(self, data):
-#         per_res, per_seq, seq, edge_index, batch = data.embedding_features_per_residue, \
-#                                                    data.embedding_features_per_sequence, \
-#                                                    data.sequence_features, \
-#                                                    data.edge_index, \
-#                                                    data.batch
-#
-#         x = seq
-#         h_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))  # hidden state
-#         c_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))  # internal state
-#
-#         # h_0 = torch.randn(2 * self.layers, self.batch, 600).to('cpu')
-#         # c_0 = torch.randn(2 * self.layers, self.batch, 600).to('cpu')
-#
-#         # Propagate input through LSTM
-#         output, (hn, cn) = self.lstm(x, (h_0, c_0))  # lstm with input, hidden, and internal state
-#         hn = hn.view(-1, self.hidden_size)  # reshaping the data for Dense layer next
-#         out = self.relu(hn)
-#         out = self.fc_1(out)  # first Dense
-#         out = self.relu(out)  # relu
-#         out = self.fc(out)  # Final Output
-#         out = self.sigm(out)
-#         return out
-
-
-class myGCN(torch.nn.Module):
+class GCN(torch.nn.Module):
     def __init__(self, input_features, hidden_channels_1, hidden_channels_2,
                  hidden_channels_3, num_classes):
-        super(myGCN, self).__init__()
-        # torch.manual_seed(12345)
-        self.conv1 = GCNConv(input_features, hidden_channels_1)
-        self.conv2 = GCNConv(hidden_channels_1, hidden_channels_2)
-        self.conv3 = GCNConv(hidden_channels_2, hidden_channels_3)
+        super(GCN, self).__init__()
+
+        torch.manual_seed(12345)
+        in_size = 1280
+        self.conv1 = GCNConv(input_features, hidden_channels_1, )
+        self.conv2 = GCNConv(in_size + hidden_channels_1, hidden_channels_2, )
+        self.conv3 = GCNConv(in_size + hidden_channels_2, hidden_channels_3, )
+
         self.lin = Linear(hidden_channels_3, num_classes)
         self.bn1 = BatchNorm(hidden_channels_1)
         self.bn2 = BatchNorm(hidden_channels_2)
         self.bn3 = BatchNorm(hidden_channels_3)
-        self.softmax = Softmax(dim=0)
+
         self.sigm = Sigmoid()
 
-        self.fc1 = torch.nn.Linear(1280, hidden_channels_3)
+        self.bn4 = BatchNorm(hidden_channels_1 + hidden_channels_2 + 1280 + 1280)
 
+        self.fc1 = torch.nn.Linear(in_size, hidden_channels_1 + hidden_channels_2 + 1280 + 1280)
 
-    def forward(self, data):
-        # 1. Obtain node embeddings
-        x, edge_index, edge_weight = data.embedding_features_per_residue, \
-                                     data.edge_index, \
-                                     data.edge_attr[:, 0:1]
-        x = self.bn1(F.relu(self.conv1(x, edge_index, edge_weight=edge_weight)))
-        x = self.bn2(F.relu(self.conv2(x, edge_index, edge_weight=edge_weight)))
-        x = self.bn3(self.conv3(x, edge_index, edge_weight=edge_weight))
+        self.fc2 = torch.nn.Linear(hidden_channels_1 + hidden_channels_2 + 1280 + 1280, 2000)
+        self.bn5 = BatchNorm(2000)
 
-        # x = self.conv1(x, edge_index)
-        # x = x.relu()
-        # x = self.conv2(x, edge_index)
-        # x = x.relu()
-        # x = self.conv3(x, edge_index)
+        self.fc3 = torch.nn.Linear(4000, num_classes)
+        self.bn6 = BatchNorm(num_classes)
+
+    def forward_once(self, data):
+
+        x_res, x_emb_seq, x_raw_seq, edge_index, edge_weight = data.embedding_features_per_residue, \
+                                                  data.embedding_features_per_sequence, \
+                                                  data.sequence_features, \
+                                                  data.edge_index, \
+                                                  data.edge_attr[:, 0:1]
+
+        xx = self.bn1(F.relu(self.conv1(x_res, edge_index)))
+        xx = F.dropout(xx, p=0.5, training=self.training)
+        xx = torch.cat((xx, x_res), 1)
+
+        xxx = self.bn2(F.relu(self.conv2(xx, edge_index)))
+        xxx = F.dropout(xxx, p=0.5, training=self.training)
+        xxx = torch.cat((xxx, x_res), 1)
+
+        # xxxx = self.bn3(F.relu(self.conv3(xxx, edge_index)))
+        # xxxx = F.dropout(xxxx, p=0.2, training=self.training)
+
+        xxxxx = torch.cat((xx, xxx), 1)
 
         # 2. Readout layer
-        x = global_mean_pool(x, data.batch)  # [batch_size, hidden_channels]
-        # print(data.embedding_features_per_sequence.shape)
+        x = global_add_pool(xxxxx, data.batch)
+
         y = self.fc1(data.embedding_features_per_sequence)
-        # print(y.shape)
         x += y
+
+        # # print(data.embedding_features_per_sequence.shape)
+        # # y = self.fc1(data.embedding_features_per_sequence)
+        # # print(y.shape)
+        # # x += y
 
         # 3. Apply a final classifier
         x = F.dropout(x, p=0.2, training=self.training)
-        x = self.lin(x)
+        x = self.bn4(x)
+
+        x = self.fc2(x)
+        x = self.bn5(x)
+
+        # x = self.lin(x)
+        #  print(x.shape)
+        return x
+
+    def forward(self, data):
+
+        x_1 = self.forward_once(data)
+        x_2 = self.forward_once(data)
+        x = torch.cat((x_1, x_2), 1)
+        x = self.fc3(x)
+        x = self.bn6(x)
         x = self.sigm(x)
 
         return x
 
 
-
-# x = myGCN()
-# print(x)
