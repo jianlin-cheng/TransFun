@@ -40,11 +40,11 @@ parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight dec
 parser.add_argument('--hidden1', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--hidden2', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--hidden3', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--train_batch', type=int, default=10, help='Training batch size.')
+parser.add_argument('--train_batch', type=int, default=30, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -54,8 +54,8 @@ if args.cuda:
 # wandb.init(project="transfun", entity='frimpz',
 #            name="{}_{}".format(args.seq, args.ont))
 
-# wandb.init(project="transfun_tests", entity='frimpz',
-#            name="{}_{}___ ".format(args.seq, args.ont))
+wandb.init(project="transfun_tests", entity='frimpz',
+           name="{}_{}___ ".format(args.seq, args.ont))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -64,16 +64,16 @@ if args.cuda:
 
 if args.ont == 'molecular_function':
     args.hidden1 = 1000
-    args.hidden1 = 800
-    args.hidden1 = 600
+    args.hidden2 = 800
+    args.hidden3 = 600
 elif args.ont == 'cellular_component':
     args.hidden1 = 1000
-    args.hidden1 = 800
-    args.hidden1 = 600
+    args.hidden2 = 800
+    args.hidden3 = 600
 elif args.ont == 'biological_process':
     args.hidden1 = 1000
-    args.hidden1 = 1000
-    args.hidden1 = 1000
+    args.hidden2 = 1000
+    args.hidden3 = 1000
 
 def create_class_weights(cnter):
     class_weight_path = Constants.ROOT + "{}/{}/class_weights".format(kwargs['seq_id'], kwargs['ont'])
@@ -91,7 +91,6 @@ def create_class_weights(cnter):
     class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([1.0 / i for i in class_weights], dtype=torch.float).to(device)
 
-    print(class_weights)
     return class_weights
 
 
@@ -205,7 +204,6 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 # epoch_recall += recall_score(getattr(data, args.ont)[:, :600].cpu(), output.cpu() > 0.5, average="samples")
                 # epoch_f1 += f1_score(getattr(data, args.ont)[:, :600].cpu(), output.cpu() > 0.5, average="samples")
 
-            print(f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples"))
             epoch_accuracy = epoch_accuracy / len(loaders['train'])
             epoch_precision = epoch_precision / len(loaders['train'])
             epoch_recall = epoch_recall / len(loaders['train'])
