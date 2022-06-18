@@ -104,11 +104,20 @@ def process_pdbpandas(raw_path, chain_id):
     return residues
 
 
+def get_cbrt(a):
+    return a**(1./3.)
+
+
 def get_knn(**kwargs):
     mode = kwargs["mode"]
     seq_length = kwargs["sequence_length"]
     if mode == "sqrt":
         x = int(math.sqrt(seq_length))
+        if x % 2 == 0:
+            return x + 1
+        return x
+    elif mode == "cbrt":
+        x = int(get_cbrt(seq_length))
         if x % 2 == 0:
             return x + 1
         return x

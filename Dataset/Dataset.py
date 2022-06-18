@@ -7,15 +7,16 @@ import os.path as osp
 from torch_geometric.data import Dataset, download_url
 
 import Constants
+from Dataset.distanceTransform import myDistanceTransform
+from Dataset.myKnn import myKNNGraph
+from Dataset.myRadiusGraph import myRadiusGraph
 from Dataset.utils import find_files, process_pdbpandas, get_knn
 import torch_geometric.transforms as T
-
 from torch_geometric.data import Data
 from Dataset.AdjacencyTransform import AdjacencyFeatures
 from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test
 import pandas as pd
 import random
-
 
 
 class PDBDataset(Dataset):
@@ -30,45 +31,48 @@ class PDBDataset(Dataset):
     def __init__(self, root, transform=None, pre_transform=None, pre_filter=None, **kwargs):
 
         self.root = root
-
-        self.seq_id = kwargs['seq_id']
-        self.ont = kwargs['ont']
-        self.session = kwargs['session']
+        self.seq_id = kwargs.get('seq_id', None)
+        self.ont = kwargs.get('ont', None)
+        self.session = kwargs.get('session', None)
+        self.prot_ids = kwargs.get('prot_ids', None)
 
         self.raw_file_list = []
         self.processed_file_list = []
 
-        self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
-        # print(self.annot)
-        # self.annot = self.annot.where(pd.notnull(self.annot), None)
-        self.annot = self.annot.set_index('Protein').to_dict('index')
-        # self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
+        if self.session == "selected":
+            self.data = self.prot_ids
+            for i in self.data:
+                self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
+                self.processed_file_list.append('{}.pt'.format(i))
+        else:
+            self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
+            self.annot = self.annot.where(pd.notnull(self.annot), None)
+            self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
 
-        if self.session == "train":
-            self.data = pickle_load(Constants.ROOT + "{}/{}/{}".format(self.seq_id, self.ont, self.session))
-            for i in self.data:
-                for j in self.data[i]:
-                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
-                    self.processed_file_list.append('{}.pt'.format(j))
-        elif self.session == "valid":
-            self.data = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session)))
-            for i in self.data:
-                self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
-                self.processed_file_list.append('{}.pt'.format(i))
-        elif self.session == "test":
-            self.data = collect_test()
-            for i in self.data:
-                self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
-                self.processed_file_list.append('{}.pt'.format(i))
+            if self.session == "train":
+                self.data = pickle_load(Constants.ROOT + "{}/{}/{}".format(self.seq_id, self.ont, self.session))
+                for i in self.data:
+                    for j in self.data[i]:
+                        self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
+                        self.processed_file_list.append('{}.pt'.format(j))
+            elif self.session == "valid":
+                self.data = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session)))
+                for i in self.data:
+                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
+                    self.processed_file_list.append('{}.pt'.format(i))
+            elif self.session == "test":
+                self.data = collect_test()
+                for i in self.data:
+                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
+                    self.processed_file_list.append('{}.pt'.format(i))
 
         self.fasta = fasta_to_dictionary(self.root + 'uniprot/cleaned_missing_target_sequence.fasta')
-
 
         super().__init__(self.root, transform, pre_transform, pre_filter)
 
     @property
     def raw_dir(self) -> str:
-        return "/data/pycharm/TransFunData/data/alphafold/"
+        return self.root + "/alphafold/"
         # return osp.join(self.root, 'raw')
 
     @property
@@ -114,26 +118,24 @@ class PDBDataset(Dataset):
                 'all': []
             }
 
-            ann = 0
-            go_terms = pickle_load(self.root + "/go_terms")
-            for ont in onts:
-                terms = go_terms['GO-terms-{}'.format(ont)]
-                tmp = self.annot[protein][ont]
-                if isinstance(tmp, float):
-                    tmp = []
-                elif isinstance(tmp, str):
-                    tmp = tmp.split(',')
-                for term in terms:
-                    if term in tmp:
-                        labels[ont].append(1)
-                    else:
-                        labels[ont].append(0)
-                ann += sum(labels[ont])
+            if self.session == "selected":
+                pass
+            else:
+                ann = 0
+                go_terms = pickle_load(self.root + "/go_terms")
+                for ont in onts:
+                    terms = go_terms['GO-terms-{}'.format(ont)]
+                    for term in terms:
+                        if term in self.annot[protein]:
+                            labels[ont].append(1)
+                        else:
+                            labels[ont].append(0)
+                    ann += sum(labels[ont])
 
-#            assert ann/2 == len(self.annot[protein].split(','))
+                assert ann / 2 == len(self.annot[protein].split(','))
 
-            for label in labels:
-                labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
+                for label in labels:
+                    labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
 
             emb = torch.load(self.root + "/esm1/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
@@ -163,16 +165,15 @@ class PDBDataset(Dataset):
 
             if self.pre_transform is not None:
                 _transforms = []
-                if "KNN" in self.pre_transform:
-                    kwargs = {'mode': 'sqrt', 'sequence_length': node_size}
-                    knn = get_knn(**kwargs)
-                    _transforms.append(T.KNNGraph(k=knn, force_undirected=True, ))
-                if "Distance" in self.pre_transform:
-                    _transforms.append(T.RadiusGraph(r=12, loop=False))
-                if "Edge_weight" in self.pre_transform:
-                    _transforms.append(T.Distance(norm=True))
-                if "Adjacent_features":
-                    _transforms.append(AdjacencyFeatures())
+                for i in self.pre_transform:
+                    if i[0] == "KNN":
+                        kwargs = {'mode': i[1], 'sequence_length': node_size}
+                        knn = get_knn(**kwargs)
+                        _transforms.append(myKNNGraph(i[1], k=knn, force_undirected=True, ))
+                    if i[0] == "DIST":
+                        _transforms.append(myRadiusGraph(i[1], r=i[2], loop=False))
+                _transforms.append(myDistanceTransform(edge_types=self.pre_transform, norm=True))
+                _transforms.append(AdjacencyFeatures(edge_types=self.pre_transform))
 
                 pre_transform = T.Compose(_transforms)
                 data = pre_transform(data)
@@ -185,9 +186,11 @@ class PDBDataset(Dataset):
     def get(self, idx):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
-            # print(rep)
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
         elif self.session == "valid":
+            rep = self.data[idx]
+            return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+        elif self.session == "selected":
             rep = self.data[idx]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
@@ -208,8 +211,16 @@ def load_dataset(root=None, **kwargs):
     if root == None:
         raise ValueError('Root path is empty, specify root directory')
 
+    # Group; name; operation/cutoff; Description
+    pre_transform = [("KNN", "sqrt", "sqrt", "K nearest neighbour with sqrt for neighbours"),
+                     ("KNN", "cbrt", "cbrt", "K nearest neighbour with sqrt for neighbours"),
+                     ("DIST", "dist_3", 3, "Distance of 2angs"),
+                     ("DIST", "dist_4", 4, "Distance of 2angs"),
+                     ("DIST", "dist_6", 6, "Distance of 2angs"),
+                     ("DIST", "dist_10", 10, "Distance of 2angs"),
+                     ("DIST", "dist_12", 12, "Distance of 2angs")]
     # PDB URL has 1 attached to it
-    dataset = PDBDataset(root, pre_transform=("Distance", "Edge_weight", "Adjacent_features"), **kwargs)
+    dataset = PDBDataset(root, pre_transform=pre_transform, **kwargs)
     return dataset
 
 
