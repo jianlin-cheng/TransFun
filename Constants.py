@@ -20,8 +20,8 @@ exp_evidence_codes = set([
     'HTP', 'HDA', 'HMP', 'HGI', 'HEP'])
 
 
-ROOT = "/data/pycharm/TransFunData/data/"
-# ROOT = "D:/Workspace/python-3/transfunData/data/"
+# ROOT = "/data/pycharm/TransFunData/data/"
+ROOT = "D:/Workspace/python-3/transfunData/data/"
 
 # CAFA4 Targets
 CAFA_TARGETS = {'287', '3702', '4577', '6239', '7227', '7955', '9606', '9823', '10090', '10116', '44689', '83333',
