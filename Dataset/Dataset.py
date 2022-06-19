@@ -4,7 +4,7 @@ import pickle
 import subprocess
 import torch
 import os.path as osp
-from torch_geometric.data import Dataset, download_url
+from torch_geometric.data import Dataset, download_url, HeteroData
 
 import Constants
 from Dataset.distanceTransform import myDistanceTransform
@@ -35,6 +35,7 @@ class PDBDataset(Dataset):
         self.ont = kwargs.get('ont', None)
         self.session = kwargs.get('session', None)
         self.prot_ids = kwargs.get('prot_ids', None)
+        print(kwargs)
 
         self.raw_file_list = []
         self.processed_file_list = []
@@ -148,17 +149,18 @@ class PDBDataset(Dataset):
             node_size = node_coords.shape[0]
             names = torch.arange(0, node_size, dtype=torch.int8)
 
-            data = Data(pos=node_coords,
-                        molecular_function=labels['molecular_function'],
-                        biological_process=labels['biological_process'],
-                        cellular_component=labels['cellular_component'],
-                        all=labels['all'],
-                        sequence_features=sequence_features,
-                        embedding_features_per_residue=embedding_features_per_residue,
-                        names=names,
-                        sequence_letters=sequence_letters,
-                        embedding_features_per_sequence=embedding_features_per_sequence,
-                        protein=protein)
+            data = HeteroData()
+            data['atoms'].pos = node_coords
+            data['atoms'].molecular_function = labels['molecular_function']
+            data['atoms'].biological_process = labels['biological_process']
+            data['atoms'].cellular_component = labels['cellular_component']
+            data['atoms'].all = labels['all']
+            data['atoms'].sequence_features = sequence_features
+            data['atoms'].embedding_features_per_residue = embedding_features_per_residue
+            data['atoms'].names = names
+            data['atoms'].sequence_letters = sequence_letters
+            data['atoms'].embedding_features_per_sequence = embedding_features_per_sequence
+            data['atoms'].protein = protein
 
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue

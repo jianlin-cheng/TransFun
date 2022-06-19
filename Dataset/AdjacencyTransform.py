@@ -15,15 +15,16 @@ class AdjacencyFeatures(BaseTransform):
         cat (bool, optional): If set to :obj:`False`, all existing edge
             attributes will be replaced. (default: :obj:`True`)
     """
+
     def __init__(self, edge_types, cat=True):
         self.cat = cat
         self.edge_types = edge_types
 
     def __call__(self, data):
-
         for edge_type in self.edge_types:
             adjacent_edges = []
-            (row, col), pseudo = getattr(data, edge_type[1]), getattr(data, edge_type[1] + "_edge_attr", None)
+            (row, col), pseudo = data['atoms', edge_type[1], 'atoms'].edge_index, \
+                                 data['atoms', edge_type[1], 'atoms'].get('edge_attr', None)
 
             for i, j in zip(row, col):
                 assert i != j
@@ -36,11 +37,12 @@ class AdjacencyFeatures(BaseTransform):
 
             if pseudo is not None and self.cat:
                 pseudo = pseudo.view(-1, 1) if pseudo.dim() == 1 else pseudo
-                setattr(data, edge_type[1] + "_edge_attr", torch.cat([pseudo, adjacent_edges.type_as(pseudo)], dim=-1))
+                data['atoms', edge_type[1], 'atoms'].edge_attr = torch.cat([pseudo, adjacent_edges.type_as(pseudo)],
+                                                                           dim=-1)
             else:
-                setattr(data, edge_type[1] + "_edge_attr", adjacent_edges)
+                data['atoms', edge_type[1], 'atoms'].edge_attr = adjacent_edges
 
         return data
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__} ')
+        return f'{self.__class__.__name__} '
