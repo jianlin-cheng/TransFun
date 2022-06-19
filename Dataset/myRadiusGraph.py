@@ -20,11 +20,13 @@ class myRadiusGraph(RadiusGraph):
         self.name = name
 
     def __call__(self, data):
-        setattr(data, self.name+'_edge_attr',  None)
+        data['atoms', self.name, 'atoms'].edge_attr = None
         batch = data.batch if 'batch' in data else None
-        setattr(data, self.name, torch_geometric.nn.radius_graph(
-            data.pos, self.r, batch, self.loop, self.max_num_neighbors,
-            self.flow))
+        data['atoms', self.name, 'atoms'].edge_index = torch_geometric.nn.radius_graph(
+                                                        data['atoms'].pos,
+                                                        self.r, batch, self.loop,
+                                                        self.max_num_neighbors,
+                                                        self.flow)
         return data
 
     def __repr__(self) -> str:

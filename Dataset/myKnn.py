@@ -13,17 +13,17 @@ class myKNNGraph(KNNGraph):
         self.name = name
 
     def __call__(self, data):
-        setattr(data, self.name+'_edge_attr',  None)
+        data['atoms', self.name, 'atoms'].edge_attr = None
         batch = data.batch if 'batch' in data else None
-        edge_index = torch_geometric.nn.knn_graph(data.pos, self.k, batch,
+        edge_index = torch_geometric.nn.knn_graph(data['atoms'].pos,
+                                                  self.k, batch,
                                                   loop=self.loop,
                                                   flow=self.flow)
 
         if self.force_undirected:
             edge_index = to_undirected(edge_index, num_nodes=data.num_nodes)
 
-        setattr(data, self.name, edge_index)
-
+        data['atoms', self.name, 'atoms'].edge_index = edge_index
         return data
 
     def __repr__(self) -> str:

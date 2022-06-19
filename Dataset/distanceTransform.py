@@ -1,19 +1,22 @@
 import torch
 
-from torch_geometric.transforms import  Distance
+from torch_geometric.transforms import Distance
 
 
 class myDistanceTransform(Distance):
     r"""
 
     """
+
     def __init__(self, edge_types, norm=True, max_value=None, cat=True):
         super().__init__(norm, max_value, cat)
         self.edge_types = edge_types
 
     def __call__(self, data):
         for i in self.edge_types:
-            (row, col), pos, pseudo = getattr(data, i[1]), data.pos, getattr(data, i[1]+"_edge_attr", None)
+            (row, col), pos, pseudo = data['atoms', i[1], 'atoms'].edge_index, \
+                                      data['atoms'].pos, \
+                                      data['atoms', i[1], 'atoms'].get('edge_attr', None)
 
             dist = torch.norm(pos[col] - pos[row], p=2, dim=-1).view(-1, 1)
 
@@ -22,9 +25,9 @@ class myDistanceTransform(Distance):
 
             if pseudo is not None and self.cat:
                 pseudo = pseudo.view(-1, 1) if pseudo.dim() == 1 else pseudo
-                setattr(data, i[1]+"_edge_attr", torch.cat([pseudo, dist.type_as(pseudo)], dim=-1))
+                data['atoms', i[1], 'atoms'].edge_attr = torch.cat([pseudo, dist.type_as(pseudo)], dim=-1)
             else:
-                setattr(data, i[1]+"_edge_attr", dist)
+                data['atoms', i[1], 'atoms'].edge_attr = dist
 
         return data
 

@@ -12,16 +12,18 @@ from Dataset.Dataset import load_dataset
 import matplotlib.pyplot as plt
 
 kwargs = {
-    'prot_ids': ['A0A023FBW4', ],
+    'prot_ids': ['P83847', ],
     'session': 'selected'
 }
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 protein = dataset[0]
+print(protein)
 node_coords = protein.pos
 edges = protein.edge_index
 
-print()
+
+exit()
 
 # x, y, z = node_coords[:, 0], node_coords[:, 1], node_coords[:, 2]
 # # print(x.shape)

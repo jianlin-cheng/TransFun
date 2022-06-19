@@ -54,8 +54,8 @@ if args.cuda:
 # wandb.init(project="transfun", entity='frimpz',
 #            name="{}_{}".format(args.seq, args.ont))
 
-wandb.init(project="transfun_tests", entity='frimpz',
-           name="{}_{}___ ".format(args.seq, args.ont))
+# wandb.init(project="transfun_tests", entity='frimpz',
+#            name="{}_{}___ ".format(args.seq, args.ont))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -106,12 +106,12 @@ kwargs = {
 class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
+
 train_dataloader = DataLoader(dataset,
-                              batch_size=args.train_batch,
+                              batch_size=10,
                               drop_last=True
                               # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
                               ,shuffle=True)
-
 
 kwargs['session'] = 'valid'
 val_dataset = load_dataset(root=Constants.ROOT, **kwargs)

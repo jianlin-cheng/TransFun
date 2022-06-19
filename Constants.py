@@ -21,8 +21,8 @@ exp_evidence_codes = set([
 
 # /home/fbqc9/PycharmProjects/TransFunData/data/0.9/cellular_component
 # ROOT = "/home/fbqc9/PycharmProjects/TransFunData/data/"
-ROOT = "D:/Workspace/python-3/transfunData/data/"
-# ROOT = "/data/pycharm/TransFunData/data/"
+# ROOT = "D:/Workspace/python-3/transfunData/data/"
+ROOT = "/data/pycharm/TransFunData/data/"
 
 # CAFA4 Targets
 CAFA_TARGETS = {"287", "3702", "4577", "6239", "7227", "7955", "9606", "9823", "10090", "10116", "44689", "83333",
