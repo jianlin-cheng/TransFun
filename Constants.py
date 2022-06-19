@@ -19,9 +19,9 @@ exp_evidence_codes = set([
     "EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC",
     "HTP", "HDA", "HMP", "HGI", "HEP"])
 
-# /home/fbqc9/PycharmProjects/TransFunData/data/0.9/cellular_component
-# ROOT = "/home/fbqc9/PycharmProjects/TransFunData/data/"
-ROOT = "D:/Workspace/python-3/transfunData/data/"
+
+ROOT = "/home/fbqc9/PycharmProjects/TransFunData/data/"
+# ROOT = "D:/Workspace/python-3/transfunData/data/"
 # ROOT = "/data/pycharm/TransFunData/data/"
 
 # CAFA4 Targets
