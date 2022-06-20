@@ -98,26 +98,17 @@ def create_class_weights(cnter):
 class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
-# ct = 0
-# for i in dataset:
-#     for k in i:
-#         if k[0] == 'sequence_letters' or k[0] == 'protein':
-#             pass
-#         else:
-#             print(k[0])
-#             print(k[1].shape)
-#     ct = ct +1
-#     if ct >10:
-#         break
+
+edge_types = list(params.edge_types - set(['{}'.format(ont_kwargs['edge_type']),
+                               '{}_edge_attr'.format(ont_kwargs['edge_type'])]))
+print(edge_types)
+exit()
 train_dataloader = DataLoader(dataset,
                               batch_size=2,
                               drop_last=True
                               # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
                               , shuffle=True,
-                              exclude_keys=['dist_3', 'dist_3_edge_attr',
-                                            'cbrt', 'dist_4', 'dist_6',
-                                            'dist_10', 'dist_12', 'sqrt_edge_attr',
-                                            'cbrt_edge_attr', 'dist_4_edge_attr'])
+                              exclude_keys=edge_types)
 
 for i in train_dataloader:
     print(i.batch)

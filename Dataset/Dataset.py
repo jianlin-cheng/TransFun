@@ -48,7 +48,9 @@ class PDBDataset(Dataset):
         else:
             self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
             self.annot = self.annot.where(pd.notnull(self.annot), None)
-            self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
+            # self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
+            # self.annot = self.annot.set_index('Protein').T.to_dict(orient='dict')
+            self.annot = self.annot.set_index('Protein').to_dict('index')
 
             if self.session == "train":
                 self.data = pickle_load(Constants.ROOT + "{}/{}/{}".format(self.seq_id, self.ont, self.session))
