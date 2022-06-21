@@ -26,7 +26,7 @@ class GCN(torch.nn.Module):
 
         self.fc1 = net_utils.FC(input_features_size, hidden_channels_1 + \
                                 hidden_channels_2 + input_features_size * 2, \
-                                relu=False, bnorm=False)
+                                relu=False, bnorm=True)
 
         self.fc2 = net_utils.FC(hidden_channels_1 + hidden_channels_2 + \
                                 input_features_size * 2, fc2_out, relu=False, bnorm=True)
@@ -39,12 +39,17 @@ class GCN(torch.nn.Module):
         self.sig = Sigmoid()
 
     def forward_once(self, data):
-        x_res, x_emb_seq, x_raw_seq, edge_index, edge_atr, x_batch = data.embedding_features_per_residue, \
-                                                                     data.embedding_features_per_sequence, \
-                                                                     data.sequence_features, \
-                                                                     getattr(data, 1), \
-                                                                     getattr(data, 1), \
-                                                                     data.batch
+        x_res, x_emb_seq, edge_index, edge_atr, x_batch = data['atoms'].embedding_features_per_residue, \
+                                                          data['atoms'].embedding_features_per_sequence, \
+                                                          data[self.edge_type].edge_index, \
+                                                          data[self.edge_type].edge_attr, \
+                                                          data['atoms'].batch
+
+        # x_res, x_emb_seq, x_raw_seq, edge_index, x_batch = data.embedding_features_per_residue, \
+        #                                                    data.embedding_features_per_sequence, \
+        #                                                    data.sequence_features, \
+        #                                                    data.edge_index, \
+        #                                                    data.batch
 
         x = self.conv1((x_res, edge_index))
         # x = F.dropout(x, p=0.5, training=self.training)
@@ -67,7 +72,7 @@ class GCN(torch.nn.Module):
         y = self.fc1(x_emb_seq)
         x += y
 
-        x = self.bn4(x)
+        # x = self.bn4(x)
         x = self.fc2(x)
 
         return x
