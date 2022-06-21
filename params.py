@@ -28,7 +28,7 @@ cc_kwargs = {
     'edge_type': 'cbrt'
 }
 
-edge_types = set(['sqrt', 'cbrt', 'dist_3', 'dist_4', 'dist_6', 'dist_10', 'dist_12',
-              'sqrt_edge_attr', 'cbrt_edge_attr', 'dist_3_edge_attr', 'dist_4_edge_attr',
-              'dist_6_edge_attr',  'dist_10_edge_attr', 'dist_12_edge_attr'
-              ])
+edge_types = set(['sequence_letters', 'pos', 'all',
+                  'molecular_function', 'biological_process',
+                  'cellular_component', 'sequence_features',
+                  'names', 'protein'])

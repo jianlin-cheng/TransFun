@@ -39,14 +39,12 @@ class GCN(torch.nn.Module):
         self.sig = Sigmoid()
 
     def forward_once(self, data):
-        print(data[0])
         x_res, x_emb_seq, x_raw_seq, edge_index, edge_atr, x_batch = data.embedding_features_per_residue, \
                                                                      data.embedding_features_per_sequence, \
                                                                      data.sequence_features, \
                                                                      getattr(data, 1), \
                                                                      getattr(data, 1), \
                                                                      data.batch
-        exit()
 
         x = self.conv1((x_res, edge_index))
         # x = F.dropout(x, p=0.5, training=self.training)

@@ -39,11 +39,11 @@ parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight dec
 parser.add_argument('--hidden1', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--hidden2', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--hidden3', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--train_batch', type=int, default=10, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=5, help='Validation batch size.')
+parser.add_argument('--train_batch', type=int, default=50, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=25, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -103,12 +103,11 @@ edge_types = list(params.edge_types - set(['{}'.format(ont_kwargs['edge_type']),
                                '{}_edge_attr'.format(ont_kwargs['edge_type'])]))
 
 train_dataloader = DataLoader(dataset,
-                              batch_size=2,
+                              batch_size=args.train_batch,
                               drop_last=True
                               # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
                               , shuffle=True,
                               exclude_keys=edge_types)
-
 
 kwargs['session'] = 'valid'
 val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
