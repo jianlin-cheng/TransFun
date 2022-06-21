@@ -101,18 +101,13 @@ dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
 edge_types = list(params.edge_types - set(['{}'.format(ont_kwargs['edge_type']),
                                '{}_edge_attr'.format(ont_kwargs['edge_type'])]))
-print(edge_types)
-exit()
+
 train_dataloader = DataLoader(dataset,
                               batch_size=2,
                               drop_last=True
                               # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
                               , shuffle=True,
                               exclude_keys=edge_types)
-
-for i in train_dataloader:
-    print(i.batch)
-    exit()
 
 
 kwargs['session'] = 'valid'

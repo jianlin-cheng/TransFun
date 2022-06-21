@@ -35,7 +35,6 @@ class PDBDataset(Dataset):
         self.ont = kwargs.get('ont', None)
         self.session = kwargs.get('session', None)
         self.prot_ids = kwargs.get('prot_ids', None)
-        print(kwargs)
 
         self.raw_file_list = []
         self.processed_file_list = []
@@ -47,7 +46,7 @@ class PDBDataset(Dataset):
                 self.processed_file_list.append('{}.pt'.format(i))
         else:
             self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
-            self.annot = self.annot.where(pd.notnull(self.annot), None)
+            # self.annot = self.annot.where(pd.notnull(self.annot), None)
             # self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
             # self.annot = self.annot.set_index('Protein').T.to_dict(orient='dict')
             self.annot = self.annot.set_index('Protein').to_dict('index')
@@ -128,14 +127,19 @@ class PDBDataset(Dataset):
                 go_terms = pickle_load(self.root + "/go_terms")
                 for ont in onts:
                     terms = go_terms['GO-terms-{}'.format(ont)]
+                    tmp = self.annot[protein][ont]
+                    if isinstance(tmp, float):
+                        tmp = []
+                    elif isinstance(tmp, str):
+                        tmp = tmp.split(',')
                     for term in terms:
-                        if term in self.annot[protein]:
+                        if term in tmp:
                             labels[ont].append(1)
                         else:
                             labels[ont].append(0)
                     ann += sum(labels[ont])
 
-                assert ann / 2 == len(self.annot[protein].split(','))
+                # assert ann / 2 == len(self.annot[protein].split(','))
 
                 for label in labels:
                     labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
