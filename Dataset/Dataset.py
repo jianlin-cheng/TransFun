@@ -194,12 +194,10 @@ class PDBDataset(Dataset):
     def get(self, idx):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
-            return torch.load(osp.join(self.processed_dir, f'{rep}.pt')), \
-            torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
+            return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
         elif self.session == "valid":
             rep = self.data[idx]
-            return torch.load(osp.join(self.processed_dir, f'{rep}.pt')),\
-                   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
+            return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
         elif self.session == "selected":
             rep = self.data[idx]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
