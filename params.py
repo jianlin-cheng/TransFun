@@ -5,7 +5,7 @@ bio_kwargs = {
     'input_features_size': 1280,
     'num_classes': 3774,
     'fc2_out': 3000,
-    'edge_type': 'cbrt'
+    'edge_type': 'dist_3'
 }
 
 mol_kwargs = {

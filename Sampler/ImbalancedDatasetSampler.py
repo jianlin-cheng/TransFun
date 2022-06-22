@@ -40,7 +40,9 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
         go_terms = pickle_load(Constants.ROOT + "/go_terms")
         terms = go_terms['GO-terms-{}'.format(kwargs['ont'])]
 
-        self.weights = torch.tensor([1.0 / label_to_count[i] for i in terms],
+        class_weights = [label_to_count[i] for i in terms]
+        total = sum(class_weights)
+        self.weights = torch.tensor([total / label_to_count[i] for i in terms],
                                     dtype=torch.float).to(device)
 
     # def _get_labels(self, dataset):
