@@ -11,7 +11,7 @@ import wandb
 
 from Dataset.Dataset import load_dataset
 from Sampler.ImbalancedDatasetSampler import ImbalancedDatasetSampler
-from models.gnn import GCN  # myGCN  # ,# GAT GCN,
+from models.gnn import GCN, GCN2  # myGCN  # ,# GAT GCN,
 
 import argparse
 import torch
@@ -36,14 +36,11 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--hidden1', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--hidden2', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--hidden3', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--train_batch', type=int, default=50, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=25, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -63,8 +60,8 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params.bio_kwargs
 
-# wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
-#            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
+wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
+           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -99,7 +96,7 @@ class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
-edge_types = list(params.edge_types - set(args.ont))
+edge_types = list(params.edge_types - set([args.ont, ]))
 
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
@@ -127,7 +124,7 @@ num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}']
 current_epoch = 1
 min_val_loss = np.Inf
 
-model = GCN(input_features=-1, **ont_kwargs)
+model = GCN2(input_features=-1, **ont_kwargs)
 
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=0.01)
@@ -200,7 +197,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 # epoch_recall += recall_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5,
                 #                               average="samples")
                 # epoch_f1 += f1_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5, average="samples")
-                print(epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
+                # print(epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
 
             epoch_accuracy = epoch_accuracy / len(loaders['train'])
             epoch_precision = epoch_precision / len(loaders['train'])
