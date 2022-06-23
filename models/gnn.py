@@ -33,6 +33,8 @@ class GCN(torch.nn.Module):
 
         self.fc3 = net_utils.FC(fc2_out*2, num_classes, relu=False, bnorm=True)
 
+        self.drp_out = nn.Dropout(p=0.4)
+
         #################################################
         self.bn4 = BatchNorm(hidden_channels_1 + hidden_channels_2 + input_features_size*2)
 
@@ -52,11 +54,11 @@ class GCN(torch.nn.Module):
         #                                                    data.batch
 
         x = self.conv1((x_res, edge_index))
-        # x = F.dropout(x, p=0.5, training=self.training)
+        x = self.drp_out(x)
         x_1 = torch.cat((x, x_res), 1)
 
         x = self.conv2((x_1, edge_index))
-        # x = F.dropout(x, p=0.5, training=self.training)
+        x = self.drp_out(x)
         x_2 = torch.cat((x, x_res), 1)
 
         # x = self.conv3((x, edge_index))
@@ -74,6 +76,7 @@ class GCN(torch.nn.Module):
 
         # x = self.bn4(x)
         x = self.fc2(x)
+        x = self.drp_out(x)
 
         return x
 
@@ -83,6 +86,8 @@ class GCN(torch.nn.Module):
 
         x = torch.cat((x_1, x_2), 1)
         x = self.fc3(x)
+        x = self.drp_out(x)
+
         x = self.sig(x)
 
         return x

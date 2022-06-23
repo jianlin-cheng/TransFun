@@ -39,7 +39,7 @@ parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight dec
 parser.add_argument('--hidden1', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--hidden2', type=int, default=1000, help='Number of hidden units.')
 parser.add_argument('--hidden3', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--train_batch', type=int, default=10, help='Training batch size.')
+parser.add_argument('--train_batch', type=int, default=40, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=5, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
@@ -63,8 +63,8 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params.bio_kwargs
 
-# wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
-#            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
+wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
+           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -85,8 +85,8 @@ def create_class_weights(cnter):
         pickle_save(class_weights, class_weight_path)
 
     total = sum(class_weights)  # /100
-    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
-    class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
 
@@ -95,19 +95,18 @@ def create_class_weights(cnter):
 # Creating training data #
 #########################################################
 
+
 class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
-edge_types = list(params.edge_types - set(['{}'.format(ont_kwargs['edge_type']),
-                               '{}_edge_attr'.format(ont_kwargs['edge_type'])]))
+edge_types = list(params.edge_types - {args.ont})
 
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
-                              drop_last=True,
+                              drop_last=False,
                               sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
                               exclude_keys=edge_types)
-
 
 kwargs['session'] = 'valid'
 val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
@@ -168,25 +167,16 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
             for data in data_loader['train']:
                 optimizer.zero_grad()
                 output = model(data.to(device))
-                # output = model(data[0].to(device))
 
                 loss = criterion(output, getattr(data['atoms'], args.ont))
-                # loss = criterion(output, getattr(data[1].to(device), args.ont))
-                # loss = criterion(output, getattr(data, args.ont))
 
-                loss = loss.mean()
-                # loss = (loss * class_weights).mean()
+                # loss = loss.mean()
+                loss = (loss * class_weights).mean()
 
                 loss.backward()
                 optimizer.step()
 
                 epoch_loss += loss.data.item()
-                # epoch_accuracy += accuracy_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5)
-                # epoch_precision += precision_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                                 average="samples")
-                # epoch_recall += recall_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                              average="samples")
-                # epoch_f1 += f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
                 epoch_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
                 epoch_precision += precision_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
@@ -195,13 +185,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                                               average="samples")
                 epoch_f1 += f1_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
-                # epoch_accuracy += accuracy_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5)
-                # epoch_precision += precision_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5,
-                #                                     average="samples")
-                # epoch_recall += recall_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5,
-                #                               average="samples")
-                # epoch_f1 += f1_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5, average="samples")
-                print(epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
+                # print(epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
 
             epoch_accuracy = epoch_accuracy / len(loaders['train'])
             epoch_precision = epoch_precision / len(loaders['train'])
@@ -217,18 +201,10 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 output = model(data.to(device))
 
                 _val_loss = criterion(output, getattr(data['atoms'], args.ont))
-                # _val_loss = criterion(output, getattr(data[1].to(device), args.ont))
 
                 _val_loss = (_val_loss * class_weights).mean()
                 # _val_loss = _val_loss.mean()
                 val_loss += _val_loss.data.item()
-
-                # val_accuracy += accuracy_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5)
-                # val_precision += precision_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                                  average="samples")
-                # val_recall += recall_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                            average="samples")
-                # val_f1 += f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
                 val_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
                 val_precision += precision_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
@@ -236,13 +212,6 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 val_recall += recall_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
                                            average="samples")
                 val_f1 += f1_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5, average="samples")
-
-                # val_accuracy += accuracy_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5)
-                # val_precision += precision_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5,
-                #                                    average="samples")
-                # val_recall += recall_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5,
-                #                              average="samples")
-                # val_f1 += f1_score(getattr(data[1], args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
             val_loss = val_loss / len(loaders['valid'])
             val_accuracy = val_accuracy / len(loaders['valid'])

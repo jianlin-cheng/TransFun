@@ -42,7 +42,7 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
 
         class_weights = [label_to_count[i] for i in terms]
         total = sum(class_weights)
-        self.weights = torch.tensor([total / label_to_count[i] for i in terms],
+        self.weights = torch.tensor([1.0 / label_to_count[i] for i in terms],
                                     dtype=torch.float).to(device)
 
     # def _get_labels(self, dataset):
