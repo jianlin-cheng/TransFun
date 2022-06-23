@@ -11,7 +11,7 @@ import wandb
 
 from Dataset.Dataset import load_dataset
 from Sampler.ImbalancedDatasetSampler import ImbalancedDatasetSampler
-from models.gnn import GCN  # myGCN  # ,# GAT GCN,
+from models.gnn import GCN, GCN2  # myGCN  # ,# GAT GCN,
 
 import argparse
 import torch
@@ -36,11 +36,8 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--hidden1', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--hidden2', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--hidden3', type=int, default=1000, help='Number of hidden units.')
-parser.add_argument('--train_batch', type=int, default=40, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=5, help='Validation batch size.')
+parser.add_argument('--train_batch', type=int, default=50, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=25, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
 parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
@@ -85,8 +82,8 @@ def create_class_weights(cnter):
         pickle_save(class_weights, class_weight_path)
 
     total = sum(class_weights)  # /100
-    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
-    # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
 
@@ -167,16 +164,25 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
             for data in data_loader['train']:
                 optimizer.zero_grad()
                 output = model(data.to(device))
+                # output = model(data[0].to(device))
 
                 loss = criterion(output, getattr(data['atoms'], args.ont))
+                # loss = criterion(output, getattr(data[1].to(device), args.ont))
+                # loss = criterion(output, getattr(data, args.ont))
 
-                # loss = loss.mean()
-                loss = (loss * class_weights).mean()
+                loss = loss.mean()
+                # loss = (loss * class_weights).mean()
 
                 loss.backward()
                 optimizer.step()
 
                 epoch_loss += loss.data.item()
+                # epoch_accuracy += accuracy_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5)
+                # epoch_precision += precision_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
+                #                                 average="samples")
+                # epoch_recall += recall_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
+                #                              average="samples")
+                # epoch_f1 += f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
                 epoch_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
                 epoch_precision += precision_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
