@@ -18,7 +18,7 @@ def read_line(filename=""):
 # This is really shitty code.
 def get_test_proteins(use='list'):
     if use == 'list':
-        pth_pre = Constants.ROOT + "supplementary_data/cafa3/benchmark20171115/lists/"
+        pth_pre = Constants.ROOT + "test/supplementary_data/cafa3/benchmark20171115/lists/"
         ONTS_DIC = {}
         for ont in ONTS:
             ONTS_DIC[ont] = set()
@@ -52,7 +52,7 @@ def get_test_proteins(use='list'):
     elif use == 'groundtruth':
         ONTS_DIC = {'BPO': {}, 'MFO': {}, 'CCO': {}}
         for ont in ONTS:
-            olp = Constants.ROOT + "supplementary_data/cafa3/benchmark20171115/" \
+            olp = Constants.ROOT + "test/supplementary_data/cafa3/benchmark20171115/" \
                   "groundtruth/leafonly_{}.txt".format(ont)
 
             with open(olp) as f:
@@ -80,7 +80,7 @@ def qcheck_bench():
 
 
 def map_cafaID_proteinnames():
-    pth = Constants.ROOT + "supplementary_data/cafa3/CAFA3_targets/Mapping files/{}"
+    pth = Constants.ROOT + "test/supplementary_data/cafa3/CAFA3_targets/Mapping files/{}"
 
     all_mappings = ['10116', '170187', '559292', '8355', '99287', '273057', '321314',
                     '284812', '83333', '3702', '7955', '243232', '9606', '224308',

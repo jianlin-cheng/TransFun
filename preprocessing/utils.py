@@ -190,6 +190,7 @@ def is_cafa_target(org):
 def is_exp_code(code):
     return code in Constants.exp_evidence_codes
 
+
 def read_test_set(file_name):
     with open(file_name) as file:
         lines = file.readlines()
@@ -199,14 +200,17 @@ def read_test_set(file_name):
 
 
 def collect_test():
-    total_test = set()
-    for ts in Constants.TEST_GROUPS:
-        tmp = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
-        total_test.update(set([i[0] for i in tmp]))
+    cafa3 = pickle_load(Constants.ROOT + "test/test_proteins_list")
+    cafa3 = set([i[0] for i in cafa3])
 
-        tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
-        total_test.update(set([i[0] for i in tmp]))
-    return total_test
+    new_test = set()
+    for ts in Constants.TEST_GROUPS:
+        # tmp = read_test_set(Constants.ROOT + "test/195-200/{}".format(ts))
+        # total_test.update(set([i[0] for i in tmp]))
+        tmp = read_test_set(Constants.ROOT + "test/205-now/{}".format(ts))
+        new_test.update(set([i[0] for i in tmp]))
+
+    return cafa3, new_test
 
 
 def test_annotation():

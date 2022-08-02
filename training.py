@@ -36,11 +36,11 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--train_batch', type=int, default=50, help='Training batch size.')
+parser.add_argument('--train_batch', type=int, default=40, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=25, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.95, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -60,8 +60,8 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params.bio_kwargs
 
-wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
-           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
+# wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
+#            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -91,23 +91,30 @@ def create_class_weights(cnter):
 #########################################################
 # Creating training data #
 #########################################################
+kwargs = {
+    'seq_id': args.seq,
+    'ont': args.ont,
+    'session': 'train'
+}
 
-class_weights = create_class_weights(class_distribution_counter(**kwargs))
+# class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
+#
 
-edge_types = list(params.edge_types - set([args.ont, ]))
-
-train_dataloader = DataLoader(dataset,
-                              batch_size=args.train_batch,
-                              drop_last=True
-                              # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
-                              , shuffle=True,
-                              exclude_keys=edge_types)
+#
+# edge_types = list(params.edge_types - set([args.ont, ]))
+#
+# train_dataloader = DataLoader(dataset,
+#                               batch_size=args.train_batch,
+#                               drop_last=True
+#                               # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device))
+#                               , shuffle=True,
+#                               exclude_keys=edge_types)
 
 kwargs['session'] = 'valid'
 val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
-
+exit()
 valid_dataloader = DataLoader(val_dataset,
                               batch_size=args.valid_batch,
                               drop_last=True,
@@ -170,8 +177,8 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 # loss = criterion(output, getattr(data[1].to(device), args.ont))
                 # loss = criterion(output, getattr(data, args.ont))
 
-                loss = loss.mean()
-                # loss = (loss * class_weights).mean()
+                # loss = loss.mean()
+                loss = (loss * class_weights).mean()
 
                 loss.backward()
                 optimizer.step()
