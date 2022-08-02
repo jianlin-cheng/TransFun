@@ -36,10 +36,10 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--train_batch', type=int, default=50, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=25, help='Validation batch size.')
+parser.add_argument('--train_batch', type=int, default=20, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
+parser.add_argument('--seq', type=float, default=0.5, help='Sequence Identity (Sequence Identity).')
 parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
@@ -60,7 +60,7 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params.bio_kwargs
 
-wandb.init(project="transfun_{}".format(args.ont), entity='frimpz',
+wandb.init(project="Transfun_{}".format(args.ont), entity='frimpz',
            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
@@ -82,8 +82,10 @@ def create_class_weights(cnter):
         pickle_save(class_weights, class_weight_path)
 
     total = sum(class_weights)  # /100
-    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
-    class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    _max = max(class_weights)
+    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    #class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
 
@@ -102,8 +104,9 @@ edge_types = list(params.edge_types - {args.ont})
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
                               drop_last=False,
-                              sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
-                              exclude_keys=edge_types)
+                              #sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
+                              exclude_keys=edge_types,
+                              shuffle=True)
 
 kwargs['session'] = 'valid'
 val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
@@ -170,8 +173,8 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 # loss = criterion(output, getattr(data[1].to(device), args.ont))
                 # loss = criterion(output, getattr(data, args.ont))
 
-                loss = loss.mean()
-                # loss = (loss * class_weights).mean()
+                # loss = loss.mean()
+                loss = (loss * class_weights).mean()
 
                 loss.backward()
                 optimizer.step()
