@@ -5,34 +5,28 @@ bio_kwargs = {
     'input_features_size': 1280,
     'num_classes': 3774,
     'fc2_out': 3000,
-    'edge_type': 'dist_3',
-    'pool': ''
+    'edge_type': 'sqrt',
+    'layers': 2,
 }
 
 mol_kwargs = {
     'hidden1': 1000,
-    'hidden2': 800,
-    'hidden3': 600,
+    'hidden2': 1000,
+    'hidden3': 1000,
     'input_features_size': 1280,
-    'num_classes': 600,
+    'num_classes': 3774,
     'fc2_out': 3000,
-    'edge_type': 'cbrt',
-    'pool': 'mean',
-    'layers': 1
+    'edge_type': 'cbrt'
 }
 
 cc_kwargs = {
     'hidden1': 1000,
-    'hidden2': 800,
+    'hidden2': 1000,
     'hidden3': 1000,
     'input_features_size': 1280,
-    'num_classes': 547,
-    'fc2_out': 547,
-    'edge_type': 'cbrt',
-    'layers': 1
+    'num_classes': 3774,
+    'fc2_out': 3000,
+    'edge_type': 'dist_3'
 }
 
-edge_types = set(['sequence_letters', 'pos', 'all',
-                  'molecular_function', 'biological_process',
-                  'cellular_component', 'sequence_features',
-                  'names', 'protein'])
+edge_types = set(['sqrt', 'cbrt', 'dist_3', 'dist_4', 'dist_6', 'dist_10', 'dist_12'])

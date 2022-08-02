@@ -12,6 +12,9 @@ from Bio.SeqRecord import SeqRecord
 from biopandas.pdb import PandasPdb
 from collections import deque, Counter
 import csv
+
+from torchviz import make_dot
+
 import Constants
 from Constants import INVALID_ACIDS, amino_acids
 
@@ -352,3 +355,11 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     valid_loss_min = checkpoint['valid_loss_min']
     # return model, optimizer, epoch value, min validation loss
     return model, optimizer, checkpoint['epoch'], valid_loss_min
+
+
+def draw_architecture(model, data_batch):
+    '''
+    Draw the network architecture.
+    '''
+    output = model(data_batch)
+    make_dot(output, params=dict(model.named_parameters())).render("rnn_lstm_torchviz", format="png")

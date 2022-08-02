@@ -40,7 +40,8 @@ class FC(nn.Module):
         _bias = False if bnorm else True
         self.fc = nn.Linear(in_features, out_features, bias=_bias)
         self.relu = nn.ReLU(inplace=True) if relu else None
-        self.bn = BatchNorm(out_features, momentum=0.1) if bnorm else None
+        # self.bn = BatchNorm(out_features, momentum=0.1) if bnorm else None
+        self.bn = nn.BatchNorm1d(out_features, momentum=0.1) if bnorm else None
 
     def forward(self, x):
         x = self.fc(x)
@@ -50,6 +51,20 @@ class FC(nn.Module):
             x = self.relu(x)
         return x
 
+
+class BNormRelu(nn.Module):
+    def __init__(self, in_features, relu=True, bnorm=True):
+        super(BNormRelu, self).__init__()
+        self.relu = nn.ReLU(inplace=True) if relu else None
+        self.bn = BatchNorm(in_features, momentum=0.1) if bnorm else None
+        # self.bn = nn.BatchNorm1d(out_features, momentum=0.1) if bnorm else None
+
+    def forward(self, x):
+        if self.bn is not None:
+            x = self.bn(x)
+        if self.relu is not None:
+            x = self.relu(x)
+        return x
 
 def get_pool(pool_type='mean'):
     if pool_type == 'mean':
