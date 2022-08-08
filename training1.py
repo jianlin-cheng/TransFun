@@ -3,23 +3,26 @@ import os
 import numpy as np
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from torch.nn import Sigmoid
+from torch_geometric.nn import global_mean_pool, global_add_pool
 from torchviz import make_dot
 
 import Constants
-import params
+import params1
 import wandb
 
 from Dataset.Dataset import load_dataset
 from Sampler.ImbalancedDatasetSampler import ImbalancedDatasetSampler
-from models.gnn import GCN, GCN2  # myGCN  # ,# GAT GCN,
-
+from models.gnn import GCN, GCN2, GCN3  # myGCN  # ,# GAT GCN,
+from models.egnn_clean import egnn_clean as eg
 import argparse
 import torch
 import time
 from torch_geometric.loader import DataLoader
 import pandas as pd
 from collections import Counter
-from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp, class_distribution_counter
+from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp, class_distribution_counter, \
+    draw_architecture
 
 import warnings
 
@@ -35,12 +38,12 @@ parser.add_argument('--fastmode', action='store_true', default=False, help='Vali
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
-parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--train_batch', type=int, default=20, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
+parser.add_argument('--weight_decay', type=float, default=1e-16, help='Weight decay (L2 loss on parameters).')
+parser.add_argument('--train_batch', type=int, default=32, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.5, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.95, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -54,19 +57,21 @@ kwargs = {
 }
 
 if args.ont == 'molecular_function':
-    ont_kwargs = params.mol_kwargs
+    ont_kwargs = params1.mol_kwargs
 elif args.ont == 'cellular_component':
-    ont_kwargs = params.cc_kwargs
+    ont_kwargs = params1.cc_kwargs
 elif args.ont == 'biological_process':
-    ont_kwargs = params.bio_kwargs
+    ont_kwargs = params1.bio_kwargs
 
-wandb.init(project="Transfun_{}".format(args.ont), entity='frimpz',
+wandb.init(project="Transfun_project_{}".format(args.ont), entity='frimpz',
            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
+
+num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}'])
 
 
 def create_class_weights(cnter):
@@ -82,10 +87,12 @@ def create_class_weights(cnter):
         pickle_save(class_weights, class_weight_path)
 
     total = sum(class_weights)  # /100
-    _max = max(class_weights)
-    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    # _max = max(class_weights)
+    # print(max(class_weights), min(class_weights), total)
+    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
-    #class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
 
@@ -99,12 +106,12 @@ class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
-edge_types = list(params.edge_types - {args.ont})
+edge_types = list(params1.edge_types - {args.ont})
 
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
-                              drop_last=False,
-                              #sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
+                              drop_last=True,
+                              # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
                               exclude_keys=edge_types,
                               shuffle=True)
 
@@ -120,33 +127,24 @@ valid_dataloader = DataLoader(val_dataset,
 print('========================================')
 print(f'# training proteins: {len(dataset)}')
 print(f'# validation proteins: {len(val_dataset)}')
+print(f'# Number of classes: {num_class}')
+print(f'# Max class weights: {torch.max(class_weights)}')
+print(f'# Min class weights: {torch.min(class_weights)}')
 print('========================================')
-
-num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}'])
 
 current_epoch = 1
 min_val_loss = np.Inf
 
-model = GCN(input_features=-1, **ont_kwargs)
+model = GCN3(**ont_kwargs)
 
 model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=0.01)
+optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
 criterion = torch.nn.BCELoss(reduction='none')
 
 
-# def draw_architecture():
-#     batch = next(iter(train_dataloader)).to(device)
-#     output = model(batch)
-#     make_dot(output, params=dict(model.named_parameters())).render("rnn_lstm_torchviz", format="png")
-# draw_architecture()
-#
-# exit()
+# draw_architecture(model=model, data_batch=next(iter(train_dataloader)).to(device))
 
-# def print_architecture():
-#     print(model)
-# print_architecture()
-#
-# exit()
 
 def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
     min_val_loss = min_val_loss
@@ -158,40 +156,29 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
         val_loss, val_precision, val_recall, val_accuracy, val_f1 = 0.0, 0.0, 0.0, 0.0, 0.0
 
         t = time.time()
-        with torch.autograd.set_detect_anomaly(True):
 
+        with torch.autograd.set_detect_anomaly(True):
+            lr_scheduler.step()
             ###################
             # train the model #
             ###################
             model.train()
             for data in data_loader['train']:
                 optimizer.zero_grad()
+
                 output = model(data.to(device))
-                # output = model(data[0].to(device))
-
-                loss = criterion(output, getattr(data['atoms'], args.ont))
-                # loss = criterion(output, getattr(data[1].to(device), args.ont))
-                # loss = criterion(output, getattr(data, args.ont))
-
-                # loss = loss.mean()
+                loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
                 loss = (loss * class_weights).mean()
 
                 loss.backward()
                 optimizer.step()
-
                 epoch_loss += loss.data.item()
-                # epoch_accuracy += accuracy_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5)
-                # epoch_precision += precision_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                                 average="samples")
-                # epoch_recall += recall_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                              average="samples")
-                # epoch_f1 += f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
                 epoch_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
                 epoch_precision += precision_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
-                                                    average="samples")
+                                                   average="samples")
                 epoch_recall += recall_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
-                                              average="samples")
+                                             average="samples")
                 epoch_f1 += f1_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
                 # print(epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
@@ -204,15 +191,15 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
             ###################
             # Validate the model #
             ###################
-
+        with torch.no_grad():
             model.eval()
             for data in data_loader['valid']:
+
                 output = model(data.to(device))
 
-                _val_loss = criterion(output, getattr(data['atoms'], args.ont))
+                _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
 
                 _val_loss = (_val_loss * class_weights).mean()
-                # _val_loss = _val_loss.mean()
                 val_loss += _val_loss.data.item()
 
                 val_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
@@ -269,7 +256,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
 
                 # save checkpoint as best model
                 save_ckp(checkpoint, True, ckp_pth,
-                     ckp_dir + "best_model.pt")
+                         ckp_dir + "best_model.pt")
                 min_val_loss = val_loss
 
     return model
@@ -283,7 +270,7 @@ loaders = {
 ckp_dir = Constants.ROOT + '{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
 ckp_pth = ckp_dir + "current_checkpoint.pt"
 if os.path.exists(ckp_pth):
-    print("Loading model checkpoint")
+    print("Loading model checkpoint @ {}".format(ckp_pth))
     model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
 else:
     if not os.path.exists(ckp_dir):

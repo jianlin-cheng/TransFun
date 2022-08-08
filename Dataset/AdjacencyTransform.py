@@ -15,30 +15,34 @@ class AdjacencyFeatures(BaseTransform):
         cat (bool, optional): If set to :obj:`False`, all existing edge
             attributes will be replaced. (default: :obj:`True`)
     """
-    def __init__(self, cat=True):
+
+    def __init__(self, edge_types, cat=True):
         self.cat = cat
+        self.edge_types = edge_types
 
     def __call__(self, data):
+        for edge_type in self.edge_types:
+            adjacent_edges = []
+            (row, col), pseudo = data['atoms', edge_type[1], 'atoms'].edge_index, \
+                                 data['atoms', edge_type[1], 'atoms'].get('edge_attr', None)
 
-        adjacent_edges = []
-        (row, col), pseudo = data.edge_index, data.edge_attr
+            for i, j in zip(row, col):
+                assert i != j
+                if abs(i - j) == 1:
+                    adjacent_edges.append(1)
+                else:
+                    adjacent_edges.append(0)
 
-        for i, j in zip(row, col):
-            assert i != j
-            if abs(i - j) == 1:
-                adjacent_edges.append(1)
+            adjacent_edges = torch.FloatTensor(adjacent_edges).view(-1, 1)
+
+            if pseudo is not None and self.cat:
+                pseudo = pseudo.view(-1, 1) if pseudo.dim() == 1 else pseudo
+                data['atoms', edge_type[1], 'atoms'].edge_attr = torch.cat([pseudo, adjacent_edges.type_as(pseudo)],
+                                                                           dim=-1)
             else:
-                adjacent_edges.append(0)
-
-        adjacent_edges = torch.FloatTensor(adjacent_edges).view(-1, 1)
-
-        if pseudo is not None and self.cat:
-            pseudo = pseudo.view(-1, 1) if pseudo.dim() == 1 else pseudo
-            data.edge_attr = torch.cat([pseudo, adjacent_edges.type_as(pseudo)], dim=-1)
-        else:
-            data.edge_attr = adjacent_edges
+                data['atoms', edge_type[1], 'atoms'].edge_attr = adjacent_edges
 
         return data
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__} ')
+        return f'{self.__class__.__name__} '
