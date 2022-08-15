@@ -1,5 +1,7 @@
+import os
+
 import Constants
-from preprocessing.utils import read_test_set, fasta_to_dictionary, pickle_save
+from preprocessing.utils import read_test_set, fasta_to_dictionary, pickle_save, pickle_load
 from Bio import SeqIO
 
 ONTS = ['BPO', 'MFO', 'CCO']
@@ -53,7 +55,7 @@ def get_test_proteins(use='list'):
         ONTS_DIC = {'BPO': {}, 'MFO': {}, 'CCO': {}}
         for ont in ONTS:
             olp = Constants.ROOT + "supplementary_data/cafa3/benchmark20171115/" \
-                  "groundtruth/leafonly_{}.txt".format(ont)
+                                   "groundtruth/leafonly_{}.txt".format(ont)
 
             with open(olp) as f:
                 lines = [line.rstrip().split('\t') for line in f]
@@ -85,7 +87,6 @@ def map_cafaID_proteinnames():
     all_mappings = ['10116', '170187', '559292', '8355', '99287', '273057', '321314',
                     '284812', '83333', '3702', '7955', '243232', '9606', '224308',
                     '85962', '160488', '223283', '44689', '10090', '243273']
-
 
     xtra_mappings = ['mapping.7227.map', 'mapping.208963.map', 'mapping.237561.map', 'target_moonlight.map']
 
@@ -124,13 +125,29 @@ def collect_test():
                 else:
                     test_proteins_not_found_fasta.append((name, test_protein))
             else:
-                test_proteins_not_found_list.append((test_protein, ))
-    print("{} files found {} files not found {} not found in fasta, maybe in trembl"\
+                test_proteins_not_found_list.append((test_protein,))
+    print("{} files found {} files not found {} not found in fasta, maybe in trembl" \
           .format(len(test_proteins_list),
                   len(test_proteins_not_found_list),
                   len(test_proteins_not_found_fasta)))
 
-    pickle_save(test_proteins_list, Constants.ROOT + "test/test_proteins_list")
-    pickle_save(test_proteins_not_found_list, Constants.ROOT + "test/test_proteins_not_found_list")
-    pickle_save(test_proteins_not_found_fasta, Constants.ROOT + "test/test_proteins_not_found_fasta")
-collect_test()
+    pickle_save(test_proteins_list, Constants.ROOT + "eval/test_proteins_list")
+    pickle_save(test_proteins_not_found_list, Constants.ROOT + "eval/test_proteins_not_found_list")
+    pickle_save(test_proteins_not_found_fasta, Constants.ROOT + "eval/test_proteins_not_found_fasta")
+
+
+# view pickled data
+def view_saved():
+    print(pickle_load(Constants.ROOT + 'eval/test_proteins_list'))
+    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_fasta'))
+    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_list'))
+
+
+# create evaluation directory
+eval_pth = Constants.ROOT + 'eval'
+if not os.path.exists(eval_pth):
+    os.mkdir(eval_pth)
+
+# collect_test()
+
+view_saved()

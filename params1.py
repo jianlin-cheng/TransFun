@@ -11,10 +11,10 @@ bio_kwargs = {
 }
 
 mol_kwargs = {
-    'hidden': 8,
+    'hidden': 16,
     'input_features_size': 1280,
     'num_classes': 600,
-    'fc2_out': 3000,
+    'fc2_out': 650,
     'edge_type': 'cbrt',
     'edge_features': 0,
     'egnn_layers': 12,
@@ -23,10 +23,10 @@ mol_kwargs = {
 }
 
 cc_kwargs = {
-    'hidden': 8,
+    'hidden': 16,
     'input_features_size': 1280,
     'num_classes': 547,
-    'fc2_out': 3000,
+    'fc2_out': 550,
     'edge_type': 'cbrt',
     'edge_features': 0,
     'egnn_layers': 12,

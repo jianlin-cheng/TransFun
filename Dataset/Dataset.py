@@ -63,10 +63,11 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                self.data = collect_test()
+                self.data = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
+                ## create test data-set
                 for i in self.data:
-                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
-                    self.processed_file_list.append('{}.pt'.format(i))
+                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i[0]))
+                    self.processed_file_list.append('{}.pt'.format(i[0]))
 
         self.fasta = fasta_to_dictionary(self.root + 'uniprot/cleaned_missing_target_sequence.fasta')
 
@@ -196,13 +197,16 @@ class PDBDataset(Dataset):
             rep = random.sample(self.data[idx], 1)[0]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
             #   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
-        elif self.session == "valid":
+        elif self.session == "valid" or self.session == "selected" or self.session == "test":
             rep = self.data[idx]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-             #  torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
-        elif self.session == "selected":
-            rep = self.data[idx]
-            return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+            #  torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
+        # elif :
+        #     rep = self.data[idx]
+        #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+        # elif :
+        #     rep = self.data[idx]
+        #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
 
 def load_dataset(root=None, **kwargs):
