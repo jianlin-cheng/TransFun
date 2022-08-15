@@ -13,7 +13,7 @@ import wandb
 
 from Dataset.Dataset import load_dataset
 from Sampler.ImbalancedDatasetSampler import ImbalancedDatasetSampler
-from models.gnn import GCN, GCN2, GCN3  # myGCN  # ,# GAT GCN,
+from models.gnn import GCN, GCN2, GCN3, GCN4  # myGCN  # ,# GAT GCN,
 from models.egnn_clean import egnn_clean as eg
 import argparse
 import torch
@@ -42,8 +42,8 @@ parser.add_argument('--weight_decay', type=float, default=1e-16, help='Weight de
 parser.add_argument('--train_batch', type=int, default=32, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.95, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.50, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -64,7 +64,7 @@ elif args.ont == 'biological_process':
     ont_kwargs = params1.bio_kwargs
 
 wandb.init(project="Transfun_project_{}".format(args.ont), entity='frimpz',
-           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
+          name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -122,7 +122,8 @@ valid_dataloader = DataLoader(val_dataset,
                               batch_size=args.valid_batch,
                               drop_last=True,
                               shuffle=True,
-                              exclude_keys=edge_types)
+                              exclude_keys=edge_types
+                              )
 
 print('========================================')
 print(f'# training proteins: {len(dataset)}')
