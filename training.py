@@ -60,8 +60,8 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params.bio_kwargs
 
-wandb.init(project="Transfun_{}".format(args.ont), entity='frimpz',
-           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
+# wandb.init(project="Transfun_{}".format(args.ont), entity='frimpz',
+#            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -95,7 +95,7 @@ def create_class_weights(cnter):
 #########################################################
 
 
-class_weights = create_class_weights(class_distribution_counter(**kwargs))
+#class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
@@ -126,6 +126,8 @@ num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}']
 
 current_epoch = 1
 min_val_loss = np.Inf
+
+exit()
 
 model = GCN(input_features=-1, **ont_kwargs)
 
