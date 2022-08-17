@@ -108,7 +108,6 @@ class PDBDataset(Dataset):
         onts = ['molecular_function', 'biological_process', 'cellular_component', 'all']
         rem_files = set(self.processed_file_list) - set(find_files(self.processed_dir, suffix="pt", type="Name"))
         print("{} unprocessed proteins out of {}".format(len(rem_files), len(self.processed_file_list)))
-
         chain_id = 'A'
 
         for file in rem_files:
