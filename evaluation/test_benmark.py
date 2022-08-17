@@ -138,9 +138,9 @@ def collect_test():
 
 # view pickled data
 def view_saved():
-    print(pickle_load(Constants.ROOT + 'eval/test_proteins_list'))
-    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_fasta'))
-    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_list'))
+    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_list'))
+    print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_fasta'))
+    print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_list'))
 
 
 # create evaluation directory

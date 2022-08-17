@@ -72,6 +72,8 @@ if os.path.exists(ckp_pth):
 # print("start_epoch = ", current_epoch)
 # print("valid_loss_min = ", min_val_loss)
 # print("valid_loss_min = {:.6f}".format(min_val_loss))
+##  # for param in model.parameters():
+##  #   print(param.data)
 # print("********************************-Parameters-***************************************")
 
 kwargs = {
@@ -87,29 +89,15 @@ for i in dataset:
 
 model.eval()
 
-# def test(loader):
-#     model.eval()
-#     correct = 0
-#     for data in train_dataloader:
-#         out = model(data)
-#         pred = out.argmax(dim=1)
-#         correct += int((pred == data.molecular_function).sum())  # Check against ground-truth labels.
-#     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
+test_dataloader = None
 
 
-
-test_acc = 0.0
-for samples, labels in loaders['test']:
+for data in test_dataloader:
     with torch.no_grad():
-        samples, labels = samples.cuda(), labels.cuda()
-        output = model(samples)
-        # calculate accuracy
-        pred = torch.argmax(output, dim=1)
-        correct = pred.eq(labels)
-        test_acc += torch.mean(correct.float())
-print('Accuracy of the network on {} test images: {}%'.format(len(testset), round(test_acc.item()*100.0/len(loaders['test']), 2)))
+        output = model(data.to(device))
+        print(output)
 
-exit()
+        exit()
 for param in model.parameters():
   print(param.data)
 exit()
