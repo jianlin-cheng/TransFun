@@ -159,10 +159,10 @@ class PDBDataset(Dataset):
 
             data = HeteroData()
             data['atoms'].pos = node_coords
-            data['atoms'].molecular_function = labels['molecular_function']
-            data['atoms'].biological_process = labels['biological_process']
-            data['atoms'].cellular_component = labels['cellular_component']
-            data['atoms'].all = labels['all']
+            data['atoms'].molecular_function = torch.IntTensor(labels['molecular_function'])
+            data['atoms'].biological_process = torch.IntTensor(labels['biological_process'])
+            data['atoms'].cellular_component = torch.IntTensor(labels['cellular_component'])
+            data['atoms'].all = torch.IntTensor(labels['all'])
             data['atoms'].sequence_features = sequence_features
             data['atoms'].embedding_features_per_residue = embedding_features_per_residue
             data['atoms'].names = names
