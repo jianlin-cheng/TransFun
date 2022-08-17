@@ -1,7 +1,8 @@
 import os
 
 import Constants
-from preprocessing.utils import read_test_set, fasta_to_dictionary, pickle_save, pickle_load
+from preprocessing.utils import read_test_set, fasta_to_dictionary, pickle_save, pickle_load, cafa_fasta_to_dictionary, \
+    create_seqrecord
 from Bio import SeqIO
 
 ONTS = ['BPO', 'MFO', 'CCO']
@@ -106,9 +107,12 @@ def map_cafaID_proteinnames():
 
 def collect_test():
     test_proteins_list = []
-    test_proteins_not_found_list = []
-    test_proteins_not_found_fasta = []
-    fasta_dictionary = fasta_to_dictionary(Constants.ROOT + 'uniprot/uniprot_sprot.fasta', identifier='protein_name')
+    all_map = {}
+
+    fasta_dictionary_1 = fasta_to_dictionary(Constants.ROOT + 'uniprot/uniprot_sprot.fasta', identifier='protein_name')
+    fasta_dictionary_2 = cafa_fasta_to_dictionary(
+        Constants.ROOT + 'supplementary_data/cafa3/CAFA3_targets/Target files/all.fasta')
+
     cafaID_proteins = map_cafaID_proteinnames()
     test_proteins = get_test_proteins(use='list')
 
@@ -116,31 +120,24 @@ def collect_test():
         for test_protein in test_proteins[ont]:
             if test_protein in cafaID_proteins:
                 name = cafaID_proteins[test_protein][0]
-                if name in fasta_dictionary:
-                    tmp = fasta_dictionary[name][0].split("|")
-                    acc = tmp[1]
-                    sp = cafaID_proteins[test_protein][1]
-                    seq = str(fasta_dictionary[cafaID_proteins[test_protein][0]][3])
-                    test_proteins_list.append((acc, name, test_protein, sp, ont, seq))
+                if name in fasta_dictionary_1:
+                    tmp = fasta_dictionary_1[name][0].split("|")[1]
                 else:
-                    test_proteins_not_found_fasta.append((name, test_protein))
-            else:
-                test_proteins_not_found_list.append((test_protein,))
-    print("{} files found {} files not found {} not found in fasta, maybe in trembl" \
-          .format(len(test_proteins_list),
-                  len(test_proteins_not_found_list),
-                  len(test_proteins_not_found_fasta)))
+                    tmp = ""
 
-    pickle_save(test_proteins_list, Constants.ROOT + "eval/test_proteins_list")
-    pickle_save(test_proteins_not_found_list, Constants.ROOT + "eval/test_proteins_not_found_list")
-    pickle_save(test_proteins_not_found_fasta, Constants.ROOT + "eval/test_proteins_not_found_fasta")
+                if not test_protein in all_map:
+                    all_map[test_protein] = (name, tmp)
+                    test_proteins_list.append(create_seqrecord(id="cafa|"+test_protein+"|"+name,
+                                                               description=tmp,
+                                                               seq=str(fasta_dictionary_2[name][3])))
+
+    SeqIO.write(test_proteins_list, Constants.ROOT + "eval/{}.fasta".format("test"), "fasta")
+    pickle_save(all_map, Constants.ROOT + "eval/test_proteins_list")
 
 
 # view pickled data
 def view_saved():
-    print(pickle_load(Constants.ROOT + 'eval/test_proteins_list'))
-    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_fasta'))
-    # print(pickle_load(Constants.ROOT + 'eval/test_proteins_not_found_list'))
+    print()
 
 
 # create evaluation directory
@@ -148,6 +145,21 @@ eval_pth = Constants.ROOT + 'eval'
 if not os.path.exists(eval_pth):
     os.mkdir(eval_pth)
 
-# collect_test()
-
+collect_test()
 view_saved()
+
+data = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
+
+found = 0
+not_found = 1
+not_found_list = []
+for i in data:
+    if os.path.isfile(Constants.ROOT + 'alphafold/AF-{}-F1-model_v2.pdb.gz'.format(data[i][1])):
+        found += 1
+    else:
+        not_found += 1
+        not_found_list.append(i)
+
+pickle_save(not_found_list, Constants.ROOT + "eval/not_found_test_proteins_list")
+
+print(found, not_found)

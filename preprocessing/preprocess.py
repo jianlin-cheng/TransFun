@@ -62,10 +62,12 @@ def generate_bulk_embedding(fasta_file, output_dir, path_to_extract_file):
                     shell=True, cwd="{}".format(path_to_extract_file))
 
 
-# generate_bulk_embedding(Constants.ROOT + "uniprot/{}.fasta".format("filtered"),
-#                        "/data/pycharm/TransFunData/data/esm1",
-#                       "/data/pycharm/TransFun/preprocessing")
+generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("test"),
+                       "/data/pycharm/TransFunData/data/bnm",
+                      "/data/pycharm/TransFun/preprocessing")
 
+
+exit()
 
 # Generate data for each group
 def generate_data():
@@ -146,25 +148,3 @@ def generate_labels(_type='GO-terms (molecular_function)', _name='molecular_func
     pickle_save(data_to_one_hot, '/data/pycharm/TransFunData/data/{}'.format(_name))
 
 # generate_labels()
-
-#
-# x = pd.read_csv("/data/pycharm/TransFun/nrPDB-GO_2019.06.18_annot.tsv", sep='\t', skiprows=12)
-# go_terms = set()
-# mf = x['GO-terms (cellular_component)'].to_list()
-# for i in mf:
-#     if isinstance(i, str):
-#         go_terms.update(i.split(','))
-# print(len(go_terms))
-#
-# xx = set(pickle_load(Constants.ROOT + "cellular_component/train_stats"))
-# print(len(xx))
-#
-# print(len(xx.intersection(go_terms)))
-
-# bp = x['GO-terms (biological_process)']
-# for i in mf:
-#     go_terms.update(i.split(','))
-# cc = x['GO-terms (cellular_component)']
-# for i in mf:
-#     go_terms.update(i.split(','))
-

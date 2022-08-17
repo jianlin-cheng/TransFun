@@ -50,7 +50,7 @@ if args.cuda:
 kwargs = {
     'seq_id': args.seq,
     'ont': args.ont,
-    'session': 'train'
+    'session': 'test'
 }
 
 if args.ont == 'molecular_function':

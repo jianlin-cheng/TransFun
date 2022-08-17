@@ -68,6 +68,13 @@ def fasta_to_dictionary(fasta_file, identifier='protein_id'):
     return data
 
 
+def cafa_fasta_to_dictionary(fasta_file):
+    data = {}
+    for seq_record in SeqIO.parse(fasta_file, "fasta"):
+        data[seq_record.description.split(" ")[1]] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
+    return data
+
+
 def alpha_seq_fasta_to_dictionary(fasta_file):
     data = {}
     for seq_record in SeqIO.parse(fasta_file, "fasta"):
@@ -363,3 +370,4 @@ def draw_architecture(model, data_batch):
     '''
     output = model(data_batch)
     make_dot(output, params=dict(model.named_parameters())).render("rnn_lstm_torchviz", format="png")
+

@@ -63,11 +63,13 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                self.data = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
+                self.data = set(pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys()).difference(
+                    pickle_load(Constants.ROOT + 'eval/not_found_test_proteins_list'))
+                self.map = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
                 ## create test data-set
                 for i in self.data:
-                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i[0]))
-                    self.processed_file_list.append('{}.pt'.format(i[0]))
+                    self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
+                    self.processed_file_list.append('{}.pt'.format(i))
 
         self.fasta = fasta_to_dictionary(self.root + 'uniprot/cleaned_missing_target_sequence.fasta')
 
@@ -112,7 +114,7 @@ class PDBDataset(Dataset):
         for file in rem_files:
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
-            raw_path = self.raw_dir + '/AF-{}-F1-model_v2.pdb.gz'.format(protein)
+            raw_path = self.raw_dir + '/AF-{}-F1-model_v2.pdb.gz'.format(self.map[protein][1])
 
             labels = {
                 'molecular_function': [],
@@ -121,7 +123,7 @@ class PDBDataset(Dataset):
                 'all': []
             }
 
-            if self.session == "selected":
+            if self.session == "selected" or self.session == 'test':
                 pass
             else:
                 ann = 0
@@ -151,7 +153,7 @@ class PDBDataset(Dataset):
 
             node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
 
-            assert self.fasta[protein][3] == sequence_letters
+            # assert self.fasta[protein][3] == sequence_letters
 
             node_size = node_coords.shape[0]
             names = torch.arange(0, node_size, dtype=torch.int8)
