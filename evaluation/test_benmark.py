@@ -134,7 +134,10 @@ def collect_test():
     SeqIO.write(test_proteins_list, Constants.ROOT + "eval/{}.fasta".format("test"), "fasta")
     pickle_save(all_map, Constants.ROOT + "eval/test_proteins_list")
 
-
+for i in pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys():
+    if os.path.exists(Constants.ROOT + "processed/{}.pt".format(i)):
+        print(os.remove("processed/{}.pt".format(i)))
+exit()
 # view pickled data
 def view_saved():
     print()
