@@ -364,14 +364,22 @@ def collect_test_clusters(cluster_path):
     computed = pd.read_csv(cluster_path, names=['cluster'], header=None).to_dict()['cluster']
     computed = {i: set(computed[i].split('\t')) for i in computed}
 
-    test_cluster = set()
+    cafa3_cluster = set()
+    new_cluster = set()
     train_cluster_indicies = []
     for i in computed:
-        if total_test.intersection(computed[i]):
-            test_cluster.update(computed[i])
+        # cafa3
+        if total_test[0].intersection(computed[i]):
+            cafa3_cluster.update(computed[i])
+        # new set
+        elif total_test[1].intersection(computed[i]):
+            new_cluster.update(computed[i])
         else:
             train_cluster_indicies.append(i)
 
+    print(len(cafa3_cluster))
+    print(len(new_cluster))
+    exit()
     return test_cluster, train_cluster_indicies
 
 
@@ -452,16 +460,21 @@ def write_output_files(protein2go, go2info, seq_id):
     # Remove test proteins & their cluster
     # Decided to remove irrespective of mf, bp | cc
     # It should be fine.
-    test_cluster, train_cluster_indicies = collect_test_clusters(cluster_path)
+    # test_cluster, train_cluster_indicies = collect_test_clusters(cluster_path)
+    # train_list = protein_list - test_cluster
+    # assert len(protein_list.intersection(test_cluster)) == len(protein_list.intersection(collect_test())) == 0
+    # print(len(protein_list), len(protein_list.intersection(cafa3)), len(protein_list.intersection(new_test)))
 
-    protein_list = protein_list - test_cluster
+    print("Getting test cluster")
+    cafa3, new_test = collect_test()
 
-    assert len(protein_list.intersection(test_cluster)) == len(protein_list.intersection(collect_test())) == 0
+    train_list = protein_list - (cafa3.union(new_test))
+    assert len(train_list.intersection(cafa3)) == len(train_list.intersection(new_test)) == 0
 
-    validation_len = 5000 #int(0.2 * len(protein_list))
+    validation_len = 6000 #int(0.2 * len(protein_list))
     validation_list = set()
 
-    for chain in protein_list:
+    for chain in train_list:
         goterms = set(protein2go[chain]['goterms'])
         mf_goterms = set(goterms).intersection(set(selected_goterms_list[onts[0]]))
         bp_goterms = set(goterms).intersection(set(selected_goterms_list[onts[1]]))
@@ -474,25 +487,27 @@ def write_output_files(protein2go, go2info, seq_id):
             break
 
     pickle_save(validation_list, Constants.ROOT + '/{}/valid'.format(seq_id))
-    protein_list = protein_list - validation_list
+    train_list = train_list - validation_list
 
-    print("Total number of train nrPDB=%d" % (len(protein_list)))
+    print("Total number of train nrPDB=%d" % (len(train_list)))
 
     annot = pd.read_csv(Constants.ROOT + 'annot.tsv', delimiter='\t')
-    for i in onts + ['all']:
-        _pth = Constants.ROOT + '{}/{}'.format(seq_id, i)
+    for ont in onts + ['all']:
+        _pth = Constants.ROOT + '{}/{}'.format(seq_id, ont)
         if not os.path.exists(_pth):
             os.mkdir(_pth)
 
-        tmp = annot[annot[i].notnull()][['Protein', i]]
+        tmp = annot[annot[ont].notnull()][['Protein', ont]]
         tmp_prot_list = set(tmp['Protein'].to_list())
-        tmp_prot_list = tmp_prot_list.intersection(protein_list)
+        tmp_prot_list = tmp_prot_list.intersection(train_list)
 
         computed = pd.read_csv(cluster_path, names=['cluster'], header=None)
-        train_indicies = computed.index.isin(train_cluster_indicies)
 
-        computed = computed.loc[train_indicies].to_dict()['cluster']
-        computed = {i: set(computed[i].split('\t')) for i in computed}
+        # train_indicies = computed.index.isin(train_cluster_indicies)
+
+        # computed = computed.loc[train_indicies].to_dict()['cluster']
+        computed = computed.to_dict()['cluster']
+        computed = {ont: set(computed[ont].split('\t')) for ont in computed}
 
         new_computed = {}
         index = 0
@@ -502,16 +517,28 @@ def write_output_files(protein2go, go2info, seq_id):
                 new_computed[index] = _tmp
                 index += 1
 
-        pickle_save(new_computed, _pth + '/train')
+        _train = set.union(*new_computed.values())
+        print("Total proteins for {} is {} in {} clusters".format(ont, len(_train), len(new_computed)))
+        assert len(cafa3.intersection(_train)) == 0 and len(validation_list.intersection(_train)) == 0
 
+        pickle_save(new_computed, _pth + '/train')
 
 
 def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=False,
              generate_msa=False, generate_esm=False, seq_id=0.3):
     """
+    section 1
     1. First compare the sequence in uniprot and alpha fold and retrieve same sequence and different sequences.
     2. Replace mismatched sequences with alpha fold sequence & create the fasta from only alphafold sequences
     3. Just another comparison to be sure, we have only alphafold sequences.
+
+    section 2
+    GO terms associated with a protein
+
+    section 3
+    1. Convert Fasta to dictionary
+    2. Read OBO graph
+    3. Get proteins and related go terms & go terms and associated proteins
 
     :param generate_msa:
     :param generate_esm:
@@ -521,15 +548,18 @@ def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=Fals
     :return:
     """
 
+    # section 1
     if compare:
         compare_sequence(Constants.ROOT + "uniprot/uniprot_sprot.fasta", save=True)  # 1
         filtered_sequences(Constants.ROOT + "uniprot/uniprot_sprot.fasta")  # 2 create cleaned.fasta
         compare_sequence(Constants.ROOT + "uniprot/cleaned.fasta", save=False)  # 3
 
+    # section 2
     if curate_protein_goterms:
         get_protein_go(uniprot_sprot_dat=Constants.ROOT + "uniprot/uniprot_sprot.dat",
                        save_path=Constants.ROOT + "protein2go.csv")  # 4 contains proteins and go terms.
 
+    # section 3
     if generate_go_count:
         cleaned_proteins = fasta_to_dictionary(Constants.ROOT + "uniprot/cleaned.fasta")
         go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))  # 5
@@ -541,7 +571,7 @@ def pipeline(compare=False, curate_protein_goterms=False, generate_go_count=Fals
     protein2go = pickle_load(Constants.ROOT + "protein2go")
     go2info = pickle_load(Constants.ROOT + "go2info")
 
-    print("Writing output")
+    print("Writing output for sequence identity {}".format(seq_id))
     write_output_files(protein2go, go2info, seq_id=seq_id)
 
     if generate_msa:

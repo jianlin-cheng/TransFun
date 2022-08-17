@@ -10,7 +10,7 @@ from parser import get_parser
 from preprocessing.utils import load_ckp
 
 
-def create_sumssion_file(group_name, model, keywords):
+def create_submssion_file(group_name, model, keywords):
     mylist = [("AUTHOR", "{}".format(group_name), ""),
               ("MODEL", "{}".format(model), ""),
               ("KEYWORDS", "{}.".format(keywords), ""), ]
@@ -26,7 +26,7 @@ def write_sumssion_file(mylist):
         fp.write('\n'.join('%s %s %s' % x for x in mylist))
 
 
-mylist = create_sumssion_file(group_name="frimpz", model=1, keywords="Transfun, "
+mylist = create_submssion_file(group_name="frimpz", model=1, keywords="Transfun, "
                                                                      "sequence alignment, "
                                                                      "sequence-profile "
                                                                      "alignment")

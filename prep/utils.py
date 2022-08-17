@@ -86,6 +86,27 @@ class DataGenerator(object):
                 if self.is_sparse:
                     labels = self.targets[batch_index, :].toarray()
                 else:
+#
+# x = pd.read_csv("/data/pycharm/TransFun/nrPDB-GO_2019.06.18_annot.tsv", sep='\t', skiprows=12)
+# go_terms = set()
+# mf = x['GO-terms (cellular_component)'].to_list()
+# for i in mf:
+#     if isinstance(i, str):
+#         go_terms.update(i.split(','))
+# print(len(go_terms))
+#
+# xx = set(pickle_load(Constants.ROOT + "cellular_component/train_stats"))
+# print(len(xx))
+#
+# print(len(xx.intersection(go_terms)))
+
+# bp = x['GO-terms (biological_process)']
+# for i in mf:
+#     go_terms.update(i.split(','))
+# cc = x['GO-terms (cellular_component)']
+# for i in mf:
+#     go_terms.update(i.split(','))
+
                     labels = self.targets[batch_index, :]
                 return res_inputs, labels
             return res_inputs
