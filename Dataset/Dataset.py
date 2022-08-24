@@ -63,9 +63,12 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                self.data = set(pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys()).difference(
-                    pickle_load(Constants.ROOT + 'eval/not_found_test_proteins_list'))
+                # self.data = set(pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys()).difference(
+                #     pickle_load(Constants.ROOT + 'eval/not_found_test_proteins_list'))
+
+                self.data = pickle_load(Constants.ROOT + "eval/all_map").keys()
                 self.map = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
+
                 ## create test data-set
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
@@ -113,7 +116,10 @@ class PDBDataset(Dataset):
         for file in rem_files:
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
-            raw_path = self.raw_dir + '/AF-{}-F1-model_v2.pdb.gz'.format(self.map[protein][1])
+            if self.session == "test":
+                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.map[protein][1])
+            else:
+                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
 
             labels = {
                 'molecular_function': [],
@@ -154,15 +160,17 @@ class PDBDataset(Dataset):
 
             # assert self.fasta[protein][3] == sequence_letters
 
+            assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
+
             node_size = node_coords.shape[0]
             names = torch.arange(0, node_size, dtype=torch.int8)
 
             data = HeteroData()
             data['atoms'].pos = node_coords
-            data['atoms'].molecular_function = torch.IntTensor(labels['molecular_function'])
-            data['atoms'].biological_process = torch.IntTensor(labels['biological_process'])
-            data['atoms'].cellular_component = torch.IntTensor(labels['cellular_component'])
-            data['atoms'].all = torch.IntTensor(labels['all'])
+            data['atoms'].molecular_function = labels['molecular_function']
+            data['atoms'].biological_process = labels['biological_process']
+            data['atoms'].cellular_component = labels['cellular_component']
+            data['atoms'].all = labels['all']
             data['atoms'].sequence_features = sequence_features
             data['atoms'].embedding_features_per_residue = embedding_features_per_residue
             data['atoms'].names = names

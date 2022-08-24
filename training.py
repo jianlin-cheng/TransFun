@@ -99,6 +99,9 @@ def create_class_weights(cnter):
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
+
+exit()
+
 edge_types = list(params.edge_types - {args.ont})
 
 train_dataloader = DataLoader(dataset,

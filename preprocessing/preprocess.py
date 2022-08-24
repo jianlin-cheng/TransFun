@@ -6,7 +6,7 @@ import esm
 import torch.nn.functional as F
 
 import Constants
-from preprocessing.utils import pickle_save, pickle_load
+from preprocessing.utils import pickle_save, pickle_load, count_proteins_biopython
 
 
 # Script to test esm
@@ -58,20 +58,21 @@ def test_esm():
 def generate_bulk_embedding(fasta_file, output_dir, path_to_extract_file):
     subprocess.call('python extract.py esm1b_t33_650M_UR50S {} {} --repr_layers 0 32 33 '
                     '--include mean per_tok --truncate'.format("{}".format(fasta_file),
-                                                    "{}".format(output_dir)),
+                                                               "{}".format(output_dir)),
                     shell=True, cwd="{}".format(path_to_extract_file))
 
 
-generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("test"),
-                       "/data/pycharm/TransFunData/data/bnm",
-                      "/data/pycharm/TransFun/preprocessing")
-
+# print(count_proteins_biopython(Constants.ROOT + "eval/{}_1.fasta".format("test")))
+# exit()
+generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("test_cropped"),
+                        "/data/pycharm/TransFunData/data/bnm",
+                        "/data/pycharm/TransFun/preprocessing")
 
 exit()
 
+
 # Generate data for each group
 def generate_data():
-
     def get_stats(data):
         go_terms = {}
         for i in data:
@@ -117,6 +118,8 @@ def generate_data():
         stats = get_stats(test_df[i[1]].to_list())
         pickle_save(stats, Constants.ROOT + i[0] + "/test_stats")
         print(len(stats))
+
+
 # generate_data()
 
 
