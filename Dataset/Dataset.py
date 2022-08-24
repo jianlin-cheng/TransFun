@@ -14,9 +14,16 @@ from Dataset.utils import find_files, process_pdbpandas, get_knn
 import torch_geometric.transforms as T
 from torch_geometric.data import Data
 from Dataset.AdjacencyTransform import AdjacencyFeatures
-from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test
+from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test, \
+    read_test_set, read_test
 import pandas as pd
 import random
+
+
+def get_data_for_test(file_name=""):
+    file_name = "bpo_HUMAN_type1"
+    x = read_test(Constants.ROOT + "supplementary_data/cafa3/benchmark20171115/lists/" + file_name + ".txt")
+    return x
 
 
 class PDBDataset(Dataset):
@@ -63,10 +70,10 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                self.data = set(pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys()).difference(
-                    pickle_load(Constants.ROOT + 'eval/not_found_test_proteins_list'))
+                self.data = w
                 self.map = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
-                ## create test data-set
+
+                # create test data-set
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -94,6 +101,7 @@ class PDBDataset(Dataset):
 
     def download(self):
         rem_files = set(self.raw_file_list) - set(find_files(self.raw_dir, suffix="pdb.gz", type="Name"))
+
         for file in rem_files:
             src = "/data/pycharm/TransFunData/data/alphafold/AF-{}-F1-model_v2.pdb.gz"
             des = self.root + "/raw/{}".format(file)
@@ -109,6 +117,7 @@ class PDBDataset(Dataset):
         rem_files = set(self.processed_file_list) - set(find_files(self.processed_dir, suffix="pt", type="Name"))
         print("{} unprocessed proteins out of {}".format(len(rem_files), len(self.processed_file_list)))
         chain_id = 'A'
+        print("Rem files is {}".format(len(rem_files)))
 
         for file in rem_files:
             protein = file.split(".")[0]
@@ -196,6 +205,7 @@ class PDBDataset(Dataset):
     def get(self, idx):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
+            # print(rep)
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
             #   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
         elif self.session == "valid" or self.session == "selected" or self.session == "test":

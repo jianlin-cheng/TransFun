@@ -209,6 +209,13 @@ def read_test_set(file_name):
     return lines
 
 
+def read_test(file_name):
+    with open(file_name) as file:
+        lines = file.readlines()
+    lines = [line.rstrip('\n') for line in lines]
+    return lines
+
+
 def collect_test():
     cafa3 = pickle_load(Constants.ROOT + "test/test_proteins_list")
     cafa3 = set([i[0] for i in cafa3])

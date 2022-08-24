@@ -50,12 +50,6 @@ class GCN(torch.nn.Module):
                                                           data[self.edge_type].edge_attr, \
                                                           data['atoms'].batch
 
-        # x_res, x_emb_seq, x_raw_seq, edge_index, x_batch = data.embedding_features_per_residue, \
-        #                                                    data.embedding_features_per_sequence, \
-        #                                                    data.sequence_features, \
-        #                                                    data.edge_index, \
-        #                                                    data.batch
-
         x = self.conv1((x_res, edge_index))
         # x = self.drp_out(x)
         x_1 = torch.cat((x, x_res), 1)
@@ -161,7 +155,6 @@ class GCN2(torch.nn.Module):
 
         return x
 
-
 class GCN3(torch.nn.Module):
     def __init__(self, **kwargs):
         super(GCN3, self).__init__()
@@ -232,7 +225,6 @@ class GCN3(torch.nn.Module):
                                                                  data['atoms'].batch, \
                                                                  data['atoms'].pos
         ppi_shape = x_emb_seq.shape
-
         edge_index_2 = list(zip(*list(itertools.combinations(range(ppi_shape[0]), 2))))
         edge_index_2 = [torch.LongTensor(edge_index_2[0]).to(self.device), torch.LongTensor(edge_index_2[1]). \
             to(self.device)]
@@ -305,67 +297,133 @@ class GCN4(torch.nn.Module):
         self.egnn_1 = eg.EGNN(in_node_nf=input_features_size,
                               hidden_nf=hidden_channels,
                               n_layers=num_egnn_layers,
-                              out_node_nf=num_classes,
+                              out_node_nf=int(num_classes / 2),
                               in_edge_nf=edge_features,
                               attention=True,
                               normalize=True,
                               tanh=True)
 
-        self.fc1 = net_utils.FC(num_classes * 4, num_classes + 500, relu=True, bnorm=True)
-        self.final = net_utils.FC(num_classes + 500, num_classes, relu=False, bnorm=False)
+        self.egnn_2 = eg.EGNN(in_node_nf=int(num_classes / 2),
+                              hidden_nf=hidden_channels,
+                              n_layers=num_egnn_layers,
+                              out_node_nf=int(num_classes / 4),
+                              in_edge_nf=edge_features,
+                              attention=True,
+                              normalize=True,
+                              tanh=True)
 
-        self.bnrelu1 = net_utils.BNormRelu(num_classes, relu=False)
-        self.bnrelu2 = net_utils.BNormRelu(num_classes + 500, relu=False)
+        self.egnn_3 = eg.EGNN(in_node_nf=int(num_classes / 4),
+                              hidden_nf=hidden_channels,
+                              n_layers=num_egnn_layers,
+                              out_node_nf=int(num_classes / 6),
+                              in_edge_nf=edge_features,
+                              attention=True,
+                              normalize=True,
+                              tanh=True)
+
+        ################################################################
+        ################################################################
+        ################################################################
+
+        self.egnn_4 = eg.EGNN(in_node_nf=input_features_size,
+                              hidden_nf=hidden_channels,
+                              n_layers=num_egnn_layers,
+                              out_node_nf=int(num_classes / 2),
+                              in_edge_nf=0,
+                              attention=True,
+                              normalize=True,
+                              tanh=True)
+
+        self.egnn_5 = eg.EGNN(in_node_nf=int(num_classes / 2),
+                              hidden_nf=hidden_channels,
+                              n_layers=num_egnn_layers,
+                              out_node_nf=int(num_classes / 4),
+                              in_edge_nf=0,
+                              attention=True,
+                              normalize=True,
+                              tanh=True)
+
+        self.egnn_6 = eg.EGNN(in_node_nf=int(num_classes / 4),
+                              hidden_nf=hidden_channels,
+                              n_layers=num_egnn_layers,
+                              out_node_nf=int(num_classes / 6),
+                              in_edge_nf=0,
+                              attention=True,
+                              normalize=True,
+                              tanh=True)
+
+        ################################################################
+        ################################################################
+        ################################################################
+
+        self.fc1 = net_utils.FC((int(num_classes / 2) + int(num_classes / 4) + int(num_classes / 6)) * 2,
+                                800, relu=True, bnorm=True)
+
+        self.final = net_utils.FC(800, num_classes, relu=True, bnorm=True)
+
+        self.bnrelu1 = net_utils.BNormRelu(int(num_classes / 2))
+        self.bnrelu2 = net_utils.BNormRelu(int(num_classes / 4))
+        self.bnrelu3 = net_utils.BNormRelu(int(num_classes / 6))
 
         self.sig = Sigmoid()
 
     def forward_once(self, data):
-        x_res, x_emb_seq, edge_index_sqrt, edge_index_12, edge_index_4, edge_index_cbrt, x_batch, x_pos =   data['atoms'].embedding_features_per_residue, \
-                                                                                                     data['atoms'].embedding_features_per_sequence, \
-                                                                                                     data['sqrt'].edge_index, \
-                                                                                                     data['dist_12'].edge_index,\
-                                                                                                     data['dist_4'].edge_index,\
-                                                                                                     data['cbrt'].edge_index,\
-                                                                                                     data['atoms'].batch, \
-                                                                                                     data['atoms'].pos
+        x_res, x_emb_seq, edge_index, edge_atr, x_batch, x_pos = data['atoms'].embedding_features_per_residue, \
+                                                                 data['atoms'].embedding_features_per_sequence, \
+                                                                 data[self.edge_type].edge_index, \
+                                                                 data[self.edge_type].edge_attr[:, 0:1], \
+                                                                 data['atoms'].batch, \
+                                                                 data['atoms'].pos
+
         ppi_shape = x_emb_seq.shape
-
         edge_index_2 = list(zip(*list(itertools.combinations(range(ppi_shape[0]), 2))))
-        edge_index_2 = [torch.LongTensor(edge_index_2[0]).to(self.device), torch.LongTensor(edge_index_2[1]). \
-            to(self.device)]
+        edge_index_2 = [torch.LongTensor(edge_index_2[0]).to(self.device),
+                        torch.LongTensor(edge_index_2[1]).to(self.device)]
 
-
-        output_res_cbrt, pre_pos_res = self.egnn_1(h=x_res,
-                                              x=x_pos,
-                                              edges=edge_index_cbrt,
-                                              edge_attr=None, )
-
-        output_res_4, pre_pos_res_2 = self.egnn_1(h=x_res,
+        output_res_1, pre_pos_res_1 = self.egnn_1(h=x_res,
                                                   x=x_pos,
-                                                  edges=edge_index_4,
-                                                  edge_attr=None, )
+                                                  edges=edge_index,
+                                                  edge_attr=edge_atr)
 
-        output_res_sqrt, pre_pos_res_3 = self.egnn_1(h=x_emb_seq,
+        output_res_2, pre_pos_res_2 = self.egnn_2(h=output_res_1,
+                                                  x=pre_pos_res_1,
+                                                  edges=edge_index,
+                                                  edge_attr=edge_atr)
+
+        output_res_3, pre_pos_res_3 = self.egnn_3(h=output_res_2,
+                                                  x=pre_pos_res_2,
+                                                  edges=edge_index,
+                                                  edge_attr=edge_atr)
+
+        output_res_4, pre_pos_res_4 = self.egnn_4(h=x_emb_seq,
                                                   x=net_utils.get_pool(pool_type='mean')(x_pos, x_batch),
                                                   edges=edge_index_2,
                                                   edge_attr=None)
 
-        output_res_12, pre_pos_seq = self.egnn_1(h=x_emb_seq,
-                                              x=net_utils.get_pool(pool_type='mean')(x_pos, x_batch),
-                                              edges=edge_index_2,
-                                              edge_attr=None)
+        output_res_5, pre_pos_res_5 = self.egnn_5(h=output_res_4,
+                                                  x=pre_pos_res_4,
+                                                  edges=edge_index_2,
+                                                  edge_attr=None)
 
+        output_res_6, pre_pos_res_6 = self.egnn_6(h=output_res_5,
+                                                  x=pre_pos_res_5,
+                                                  edges=edge_index_2,
+                                                  edge_attr=None)
 
-        output_res_cbrt = net_utils.get_pool(pool_type='mean')(output_res_cbrt, x_batch)
-        output_res_cbrt = self.bnrelu1(output_res_cbrt)
+        output_res_1 = net_utils.get_pool(pool_type='mean')(output_res_1, x_batch)
+        output_res_1 = self.bnrelu1(output_res_1)
 
-        output_res_4 = net_utils.get_pool(pool_type='mean')(output_res_4, x_batch)
+        output_res_2 = net_utils.get_pool(pool_type='mean')(output_res_2, x_batch)
+        output_res_2 = self.bnrelu2(output_res_2)
+
+        output_res_3 = net_utils.get_pool(pool_type='mean')(output_res_3, x_batch)
+        output_res_3 = self.bnrelu3(output_res_3)
+
         output_res_4 = self.bnrelu1(output_res_4)
+        output_res_5 = self.bnrelu2(output_res_5)
+        output_res_6 = self.bnrelu3(output_res_6)
 
-        output_res_12 = self.bnrelu1(output_res_12)
-        output_res_sqrt = self.bnrelu1(output_res_sqrt)
-
-        output = torch.cat([output_res_cbrt, output_res_4, output_res_12, output_res_sqrt], 1)
+        output = torch.cat([output_res_1, output_res_4, output_res_2, output_res_5, output_res_3, output_res_6], 1)
 
         return output
 
@@ -378,7 +436,6 @@ class GCN4(torch.nn.Module):
         x = torch.cat(passes, 1)
 
         x = self.fc1(x)
-        # x = self.fc2(x)
         x = self.final(x)
         x = self.sig(x)
 

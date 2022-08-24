@@ -1,26 +1,19 @@
-import math
 import os
 import numpy as np
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from torch.nn import Sigmoid
-from torch_geometric.nn import global_mean_pool, global_add_pool
-from torchviz import make_dot
+from torch.nn.functional import normalize
 
 import Constants
 import params1
 import wandb
 
 from Dataset.Dataset import load_dataset
-from Sampler.ImbalancedDatasetSampler import ImbalancedDatasetSampler
-from models.gnn import GCN, GCN2, GCN3, GCN4  # myGCN  # ,# GAT GCN,
-from models.egnn_clean import egnn_clean as eg
+from models.gnn import GCN4, GCN3
 import argparse
 import torch
 import time
 from torch_geometric.loader import DataLoader
-import pandas as pd
-from collections import Counter
 from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp, class_distribution_counter, \
     draw_architecture
 
@@ -38,12 +31,12 @@ parser.add_argument('--fastmode', action='store_true', default=False, help='Vali
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
-parser.add_argument('--weight_decay', type=float, default=1e-16, help='Weight decay (L2 loss on parameters).')
+parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--train_batch', type=int, default=32, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.50, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.95, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -90,8 +83,8 @@ def create_class_weights(cnter):
     # _max = max(class_weights)
     # print(max(class_weights), min(class_weights), total)
     # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
-    class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
-    # class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
@@ -122,8 +115,7 @@ valid_dataloader = DataLoader(val_dataset,
                               batch_size=args.valid_batch,
                               drop_last=True,
                               shuffle=True,
-                              exclude_keys=edge_types
-                              )
+                              exclude_keys=edge_types)
 
 print('========================================')
 print(f'# training proteins: {len(dataset)}')
@@ -136,7 +128,7 @@ print('========================================')
 current_epoch = 1
 min_val_loss = np.Inf
 
-model = GCN3(**ont_kwargs)
+model = GCN4(**ont_kwargs)
 
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -199,7 +191,6 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 output = model(data.to(device))
 
                 _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
-
                 _val_loss = (_val_loss * class_weights).mean()
                 val_loss += _val_loss.data.item()
 
@@ -288,15 +279,3 @@ wandb.config = {
 trained_model = train(current_epoch, min_val_loss,
                       model=model, optimizer=optimizer,
                       criterion=criterion, data_loader=loaders)
-
-# exit()
-#
-#
-# def test(loader):
-#     model.eval()
-#     correct = 0
-#     for data in train_dataloader:
-#         out = model(data)
-#         pred = out.argmax(dim=1)
-#         correct += int((pred == data.molecular_function).sum())  # Check against ground-truth labels.
-#     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
