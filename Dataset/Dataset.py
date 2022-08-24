@@ -14,16 +14,9 @@ from Dataset.utils import find_files, process_pdbpandas, get_knn
 import torch_geometric.transforms as T
 from torch_geometric.data import Data
 from Dataset.AdjacencyTransform import AdjacencyFeatures
-from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test, \
-    read_test_set, read_test
+from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test
 import pandas as pd
 import random
-
-
-def get_data_for_test(file_name=""):
-    file_name = "bpo_HUMAN_type1"
-    x = read_test(Constants.ROOT + "supplementary_data/cafa3/benchmark20171115/lists/" + file_name + ".txt")
-    return x
 
 
 class PDBDataset(Dataset):
@@ -70,10 +63,13 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                self.data = w
+                # self.data = set(pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys()).difference(
+                #     pickle_load(Constants.ROOT + 'eval/not_found_test_proteins_list'))
+
+                self.data = pickle_load(Constants.ROOT + "eval/all_map").keys()
                 self.map = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
 
-                # create test data-set
+                ## create test data-set
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -101,7 +97,6 @@ class PDBDataset(Dataset):
 
     def download(self):
         rem_files = set(self.raw_file_list) - set(find_files(self.raw_dir, suffix="pdb.gz", type="Name"))
-
         for file in rem_files:
             src = "/data/pycharm/TransFunData/data/alphafold/AF-{}-F1-model_v2.pdb.gz"
             des = self.root + "/raw/{}".format(file)
@@ -117,12 +112,14 @@ class PDBDataset(Dataset):
         rem_files = set(self.processed_file_list) - set(find_files(self.processed_dir, suffix="pt", type="Name"))
         print("{} unprocessed proteins out of {}".format(len(rem_files), len(self.processed_file_list)))
         chain_id = 'A'
-        print("Rem files is {}".format(len(rem_files)))
 
         for file in rem_files:
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
-            raw_path = self.raw_dir + '/AF-{}-F1-model_v2.pdb.gz'.format(self.map[protein][1])
+            if self.session == "test":
+                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.map[protein][1])
+            else:
+                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
 
             labels = {
                 'molecular_function': [],
@@ -163,15 +160,17 @@ class PDBDataset(Dataset):
 
             # assert self.fasta[protein][3] == sequence_letters
 
+            assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
+
             node_size = node_coords.shape[0]
             names = torch.arange(0, node_size, dtype=torch.int8)
 
             data = HeteroData()
             data['atoms'].pos = node_coords
-            data['atoms'].molecular_function = torch.IntTensor(labels['molecular_function'])
-            data['atoms'].biological_process = torch.IntTensor(labels['biological_process'])
-            data['atoms'].cellular_component = torch.IntTensor(labels['cellular_component'])
-            data['atoms'].all = torch.IntTensor(labels['all'])
+            data['atoms'].molecular_function = labels['molecular_function']
+            data['atoms'].biological_process = labels['biological_process']
+            data['atoms'].cellular_component = labels['cellular_component']
+            data['atoms'].all = labels['all']
             data['atoms'].sequence_features = sequence_features
             data['atoms'].embedding_features_per_residue = embedding_features_per_residue
             data['atoms'].names = names
@@ -205,7 +204,6 @@ class PDBDataset(Dataset):
     def get(self, idx):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
-            # print(rep)
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
             #   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
         elif self.session == "valid" or self.session == "selected" or self.session == "test":

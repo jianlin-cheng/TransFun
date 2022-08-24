@@ -103,6 +103,9 @@ class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
+
+exit()
+
 edge_types = list(params.edge_types - {args.ont})
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
