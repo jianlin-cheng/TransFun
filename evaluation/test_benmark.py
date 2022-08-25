@@ -234,6 +234,7 @@ def merge_pts():
     files = pickle_load(Constants.ROOT + "eval/cropped_files")
     unique_files = {i.split("_____")[0] for i in files}
     levels = {i.split("_____")[1] for i in files}
+    embeddings = [0, 32, 33]
 
     for i in unique_files:
         print(i)
@@ -249,26 +250,32 @@ def merge_pts():
             splits = index['label'].split("|")
             data['label'] = splits[0] + "|" + splits[1].split("_____")[0] + "|" + splits[2]
 
-            for rep in [0, 32, 33]:
+            for rep in embeddings:
+                assert torch.equal(index['mean_representations'][rep], torch.mean(index['representations'][rep], dim=0))
+
                 if rep in data['representations']:
                     data['representations'][rep] = torch.cat(
                         (data['representations'][rep], index['representations'][rep]))
                 else:
                     data['representations'][rep] = index['representations'][rep]
 
-                if rep in data['mean_representations']:
-                    data['mean_representations'][rep] = torch.cat(
-                        (data['mean_representations'][rep], index['mean_representations'][rep]))
-                else:
-                    data['mean_representations'][rep] = index['mean_representations'][rep]
-
         assert len(fasta[i][3]) == data['representations'][33].shape[0]
 
+        for rep in embeddings:
+            data['mean_representations'][rep] = torch.mean(data['representations'][rep], dim=0)
+
         print("saving {}".format(i))
+
+        # print(data['representations'][33].shape)
+        # print(data['representations'][0].shape)
+        # print(data['representations'][32].shape)
+        print(data['mean_representations'][32].shape)
+        # print(len(fasta[i][3]))
+
         torch.save(data, Constants.ROOT + "merged/{}.pt".format(i))
 
 
-# merge_pts()
+merge_pts()
 
 # script to delete and remake
 def delete_from_processed(pth):
@@ -278,9 +285,12 @@ def delete_from_processed(pth):
         os_pth = pth + "{}.pt".format(i)
         if os.path.exists(os_pth):
             os.remove(os_pth)
+            print("removed " + i)
 
 
-delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
+# delete_from_processed(pth=Constants.ROOT + "processed/")
+
+# delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
 
 
 # x = pickle_load(Constants.ROOT + "eval/all_map").keys()

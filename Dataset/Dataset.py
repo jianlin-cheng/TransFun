@@ -161,16 +161,19 @@ class PDBDataset(Dataset):
             # assert self.fasta[protein][3] == sequence_letters
 
             assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
+            assert embedding_features_per_residue.shape[1] == embedding_features_per_sequence.shape[1]
 
             node_size = node_coords.shape[0]
             names = torch.arange(0, node_size, dtype=torch.int8)
 
             data = HeteroData()
             data['atoms'].pos = node_coords
-            data['atoms'].molecular_function = labels['molecular_function']
-            data['atoms'].biological_process = labels['biological_process']
-            data['atoms'].cellular_component = labels['cellular_component']
-            data['atoms'].all = labels['all']
+
+            data['atoms'].molecular_function = torch.IntTensor(labels['molecular_function'])
+            data['atoms'].biological_process = torch.IntTensor(labels['biological_process'])
+            data['atoms'].cellular_component = torch.IntTensor(labels['cellular_component'])
+            data['atoms'].all = torch.IntTensor(labels['all'])
+
             data['atoms'].sequence_features = sequence_features
             data['atoms'].embedding_features_per_residue = embedding_features_per_residue
             data['atoms'].names = names
@@ -196,7 +199,7 @@ class PDBDataset(Dataset):
                 pre_transform = T.Compose(_transforms)
                 data = pre_transform(data)
 
-            torch.save(data, osp.join(self.processed_dir, f'{protein}.pt'))
+            torch.save(data, osp.join(Constants.ROOT+"POY/", f'{protein}.pt'))
 
     def len(self):
         return len(self.data)
