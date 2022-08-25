@@ -36,8 +36,8 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--train_batch', type=int, default=20, help='Training batch size.')
-parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
+parser.add_argument('--train_batch', type=int, default=32, help='Training batch size.')
+parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.5, help='Sequence Identity (Sequence Identity).')
 parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
@@ -50,7 +50,7 @@ if args.cuda:
 kwargs = {
     'seq_id': args.seq,
     'ont': args.ont,
-    'session': 'test'
+    'session': 'train'
 }
 
 if args.ont == 'molecular_function':
@@ -60,13 +60,15 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params.bio_kwargs
 
-# wandb.init(project="Transfun_{}".format(args.ont), entity='frimpz',
-#            name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
+wandb.init(project="Transfun_GCN_{}".format(args.ont), entity='frimpz',
+           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
+
+num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}'])
 
 
 def create_class_weights(cnter):
@@ -82,10 +84,12 @@ def create_class_weights(cnter):
         pickle_save(class_weights, class_weight_path)
 
     total = sum(class_weights)  # /100
-    _max = max(class_weights)
-    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    # _max = max(class_weights)
+    # print(max(class_weights), min(class_weights), total)
+    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
-    #class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
 
@@ -95,7 +99,7 @@ def create_class_weights(cnter):
 #########################################################
 
 
-#class_weights = create_class_weights(class_distribution_counter(**kwargs))
+class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
@@ -103,11 +107,10 @@ dataset = load_dataset(root=Constants.ROOT, **kwargs)
 exit()
 
 edge_types = list(params.edge_types - {args.ont})
-
 train_dataloader = DataLoader(dataset,
                               batch_size=args.train_batch,
                               drop_last=False,
-                              #sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
+                              # sampler=ImbalancedDatasetSampler(dataset, **kwargs, device=device),
                               exclude_keys=edge_types,
                               shuffle=True)
 
@@ -116,21 +119,21 @@ val_dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
 valid_dataloader = DataLoader(val_dataset,
                               batch_size=args.valid_batch,
-                              drop_last=True,
+                              drop_last=False,
                               shuffle=True,
                               exclude_keys=edge_types)
 
 print('========================================')
 print(f'# training proteins: {len(dataset)}')
 print(f'# validation proteins: {len(val_dataset)}')
+print(f'# Number of classes: {num_class}')
+print(f'# Max class weights: {torch.max(class_weights)}')
+print(f'# Min class weights: {torch.min(class_weights)}')
 print('========================================')
 
-num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}'])
 
 current_epoch = 1
 min_val_loss = np.Inf
-
-exit()
 
 model = GCN(input_features=-1, **ont_kwargs)
 
@@ -139,19 +142,13 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=0.01)
 criterion = torch.nn.BCELoss(reduction='none')
 
 
-# def draw_architecture():
-#     batch = next(iter(train_dataloader)).to(device)
-#     output = model(batch)
-#     make_dot(output, params=dict(model.named_parameters())).render("rnn_lstm_torchviz", format="png")
-# draw_architecture()
-#
-# exit()
+# draw_architecture(model=model, data_batch=next(iter(train_dataloader)).to(device))
 
-# def print_architecture():
-#     print(model)
-# print_architecture()
-#
-# exit()
+
+
+
+
+
 
 def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
     min_val_loss = min_val_loss
@@ -170,27 +167,15 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
             ###################
             model.train()
             for data in data_loader['train']:
+
                 optimizer.zero_grad()
                 output = model(data.to(device))
-                # output = model(data[0].to(device))
-
-                loss = criterion(output, getattr(data['atoms'], args.ont))
-                # loss = criterion(output, getattr(data[1].to(device), args.ont))
-                # loss = criterion(output, getattr(data, args.ont))
-
-                # loss = loss.mean()
+                loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
                 loss = (loss * class_weights).mean()
 
                 loss.backward()
                 optimizer.step()
-
                 epoch_loss += loss.data.item()
-                # epoch_accuracy += accuracy_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5)
-                # epoch_precision += precision_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                                 average="samples")
-                # epoch_recall += recall_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5,
-                #                              average="samples")
-                # epoch_f1 += f1_score(getattr(data, args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
                 epoch_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
                 epoch_precision += precision_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
@@ -210,14 +195,14 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
             # Validate the model #
             ###################
 
+        with torch.no_grad():
             model.eval()
             for data in data_loader['valid']:
+
                 output = model(data.to(device))
 
-                _val_loss = criterion(output, getattr(data['atoms'], args.ont))
-
+                _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
                 _val_loss = (_val_loss * class_weights).mean()
-                # _val_loss = _val_loss.mean()
                 val_loss += _val_loss.data.item()
 
                 val_accuracy += accuracy_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5)
@@ -285,7 +270,7 @@ loaders = {
     'valid': valid_dataloader
 }
 
-ckp_dir = Constants.ROOT + '{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
+ckp_dir = Constants.ROOT + '{}/{}/model_checkpoint_gcn/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
 ckp_pth = ckp_dir + "current_checkpoint.pt"
 if os.path.exists(ckp_pth):
     print("Loading model checkpoint")
@@ -305,15 +290,3 @@ wandb.config = {
 trained_model = train(current_epoch, min_val_loss,
                       model=model, optimizer=optimizer,
                       criterion=criterion, data_loader=loaders)
-
-# exit()
-#
-#
-# def test(loader):
-#     model.eval()
-#     correct = 0
-#     for data in train_dataloader:
-#         out = model(data)
-#         pred = out.argmax(dim=1)
-#         correct += int((pred == data.molecular_function).sum())  # Check against ground-truth labels.
-#     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
