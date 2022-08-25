@@ -206,6 +206,7 @@ def read_test_set(file_name):
         lines = file.readlines()
 
     lines = [line.rstrip('\n').split("\t") for line in lines]
+    # lines = [line.rstrip('\n').split("\t")[0] for line in lines]
     return lines
 
 

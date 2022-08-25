@@ -12,8 +12,14 @@ from preprocessing.utils import load_ckp, pickle_save, pickle_load
 from torch_geometric.loader import DataLoader
 
 
-def write_sumssion_file(mylist):
-    with open(Constants.ROOT + 'eval/dae_1_9606.txt', 'w') as fp:
+NAMESPACES = {
+    "cellular_component": "cc",
+    "molecular_function": "mf",
+    "biological_process": "bp",
+}
+
+def write_sumssion_file(mylist, file_name):
+    with open(Constants.ROOT + 'eval/predicted/{}.txt'.format(file_name), 'w') as fp:
         fp.write('\n'.join('%s\t%s\t%s' % x for x in mylist))
 
 
@@ -36,12 +42,14 @@ args = get_parser()
 if args.cuda:
     device = 'cuda'
 
+
 if args.ont == 'molecular_function':
     ont_kwargs = params1.mol_kwargs
 elif args.ont == 'cellular_component':
     ont_kwargs = params1.cc_kwargs
 elif args.ont == 'biological_process':
     ont_kwargs = params1.bio_kwargs
+
 
 # model
 model = model = GCN3(**ont_kwargs)
@@ -74,16 +82,12 @@ print("********************************-Parameters-*****************************
 kwargs = {
     'seq_id': args.seq,
     'ont': args.ont,
-    'session': 'test'
+    'session': 'test',
+    'test_file': 'leafonly_MFO.txt'
 }
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
-print(f'# training proteins: {len(dataset)}')
+print(f'# Evaluation proteins: {len(dataset)}')
 
-
-for i in dataset:
-    if i['atoms'].pos.shape[0] != i['atoms'].embedding_features_per_residue.shape[0]:
-        print(i['atoms'].protein)
-exit()
 
 test_dataloader = DataLoader(dataset,
                              batch_size=32,
@@ -92,26 +96,17 @@ test_dataloader = DataLoader(dataset,
                              # exclude_keys=edge_types,
                              shuffle=True)
 
-
 probabilities = []
 proteins = []
 for data in test_dataloader:
-    # if not data['atoms'].pos.shape[0] == data['atoms'].embedding_features_per_residue.shape[0]:
-    #     print(data['atoms'].protein)
-    #     # print(data['atoms'].pos.shape, data['atoms'].embedding_features_per_residue.shape)
-
-
     with torch.no_grad():
         proteins.extend(data['atoms'].protein)
         probabilities.extend(model(data.to(device)).tolist())
 
-mylist = create_submssion_file(group_name="Frimpz", model=1, keywords="sequence alignment", proteins=proteins, probabilities=probabilities)
-write_sumssion_file(mylist)
 
-#
-# # mylist = create_submssion_file(group_name="frimpz", model=1, keywords="Transfun, "
-# #                                                                   "sequence alignment, "
-# #                                                                   "sequence-profile "
-# #                                                                   "alignment")
-# # write_sumssion_file(mylist)
-# exit()
+mylist = create_submssion_file(group_name="Frimpz", model=1,
+                               keywords="sequence alignment",
+                               proteins=proteins, probabilities=probabilities)
+
+name = kwargs['test_file'].split("_")
+write_sumssion_file(mylist, file_name=NAMESPACES[kwargs['ont']]+"_"+str(1)+"_"+"all")

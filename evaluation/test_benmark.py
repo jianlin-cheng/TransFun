@@ -92,7 +92,7 @@ def map_cafaID_proteinnames():
                     '284812', '83333', '3702', '7955', '243232', '9606', '224308',
                     '85962', '160488', '223283', '44689', '10090', '243273']
 
-    xtra_mappings = ['mapping.7227.map', 'mapping.208963.map', 'mapping.237561.map', 'target_moonlight.map']
+    xtra_mappings = ['7227', '208963', '237561', 'target_moonlight']
 
     full_mapping = []
     for mapping_file in all_mappings:
@@ -100,11 +100,22 @@ def map_cafaID_proteinnames():
         maps = [map + [mapping_file] for map in maps]
         full_mapping.extend(maps)
 
+    for mapping_file in xtra_mappings[1:3]:
+        maps = read_test_set(pth.format("mapping.{}.map".format(mapping_file)))
+        maps = [map + [mapping_file] for map in maps]
+        full_mapping.extend(maps)
+
     maps = read_test_set(pth.format("target_moonlight.map"))
     maps = [map + ["moonlight"] for map in maps]
     full_mapping.extend(maps)
 
+    maps = read_test_set(pth.format("mapping.7227.map"))
+    maps = [map[0:2] + ["7227"] for map in maps]
+    full_mapping.extend(maps)
+
     full_mapping = {i[0]: (i[1], i[2]) for i in full_mapping}
+
+
     return full_mapping
 
 
@@ -192,14 +203,20 @@ def collect_test():
             else:
                 cafa_id_not_mapped.add(test_protein)
 
-    SeqIO.write(test_proteins_list, Constants.ROOT + "eval/test.fasta".format("test"), "fasta")
-    pickle_save(all_map, Constants.ROOT + "eval/all_map")
-    pickle_save(no_alpha_fold, Constants.ROOT + "eval/no_alpha_fold")
-    pickle_save(cafa_id_not_mapped, Constants.ROOT + "eval/cafa_id_not_mapped")
+    # SeqIO.write(test_proteins_list, Constants.ROOT + "eval/test.fasta".format("test"), "fasta")
+    # pickle_save(all_map, Constants.ROOT + "eval/all_map")
+    # pickle_save(no_alpha_fold, Constants.ROOT + "eval/no_alpha_fold")
+    # pickle_save(cafa_id_not_mapped, Constants.ROOT + "eval/cafa_id_not_mapped")
+    print(len(all_map), len(no_alpha_fold), len(cafa_id_not_mapped))
+    print(sorted(cafa_id_not_mapped))
 
 
-# collect_test()
+collect_test()
 
+# print(pickle_load(Constants.ROOT + "eval/no_alpha_fold"))
+# print(pickle_load(Constants.ROOT + "eval/cafa_id_not_mapped"))
+
+exit()
 
 def collect_seq_gt_1021():
     tmp = []
@@ -278,9 +295,12 @@ def delete_from_processed(pth):
         os_pth = pth + "{}.pt".format(i)
         if os.path.exists(os_pth):
             os.remove(os_pth)
+            print("deleted "+ os_pth)
 
 
-delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
+# delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
+
+# delete_from_processed(pth=Constants.ROOT + "processed/")
 
 
 # x = pickle_load(Constants.ROOT + "eval/all_map").keys()

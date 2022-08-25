@@ -35,8 +35,8 @@ parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight dec
 parser.add_argument('--train_batch', type=int, default=32, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.95, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -128,7 +128,7 @@ print('========================================')
 current_epoch = 1
 min_val_loss = np.Inf
 
-model = GCN4(**ont_kwargs)
+model = GCN3(**ont_kwargs)
 
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

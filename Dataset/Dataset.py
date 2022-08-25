@@ -14,7 +14,8 @@ from Dataset.utils import find_files, process_pdbpandas, get_knn
 import torch_geometric.transforms as T
 from torch_geometric.data import Data
 from Dataset.AdjacencyTransform import AdjacencyFeatures
-from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test
+from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test, \
+    read_test_set, read_test
 import pandas as pd
 import random
 
@@ -35,6 +36,7 @@ class PDBDataset(Dataset):
         self.ont = kwargs.get('ont', None)
         self.session = kwargs.get('session', None)
         self.prot_ids = kwargs.get('prot_ids', None)
+        self.test_file = kwargs.get('test_file', None)
 
         self.raw_file_list = []
         self.processed_file_list = []
@@ -63,10 +65,7 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                # self.data = set(pickle_load(Constants.ROOT + 'eval/test_proteins_list').keys()).difference(
-                #     pickle_load(Constants.ROOT + 'eval/not_found_test_proteins_list'))
-
-                self.data = pickle_load(Constants.ROOT + "eval/all_map").keys()
+                self.data = self.get_test(self.test_file)
                 self.map = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
 
                 ## create test data-set
@@ -216,6 +215,15 @@ class PDBDataset(Dataset):
         # elif :
         #     rep = self.data[idx]
         #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+
+    def get_test(self, test_file):
+
+        all_test = set(pickle_load(Constants.ROOT + "eval/all_map").keys())
+        x = set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file)))
+
+        return list(x.intersection(all_test))
+
+
 
 
 def load_dataset(root=None, **kwargs):
