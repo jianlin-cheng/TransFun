@@ -65,8 +65,8 @@ class PDBDataset(Dataset):
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
+                self.all_test = pickle_load(Constants.ROOT + "eval/all_map")
                 self.data = self.get_test(self.test_file)
-                self.map = pickle_load(Constants.ROOT + 'eval/test_proteins_list')
 
                 ## create test data-set
                 for i in self.data:
@@ -116,9 +116,14 @@ class PDBDataset(Dataset):
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
             if self.session == "test":
-                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.map[protein][1])
+                print(protein)
+                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.all_test[protein][0])
+                print(raw_path)
+                exit()
             else:
                 raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
+
+            print(raw_path)
 
             labels = {
                 'molecular_function': [],
@@ -159,6 +164,9 @@ class PDBDataset(Dataset):
 
             # assert self.fasta[protein][3] == sequence_letters
 
+            print(embedding_features_per_residue.shape[0], node_coords.shape[0])
+            print(embedding_features_per_residue.shape[1], embedding_features_per_sequence.shape[1])
+
             assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
             assert embedding_features_per_residue.shape[1] == embedding_features_per_sequence.shape[1]
 
@@ -198,7 +206,7 @@ class PDBDataset(Dataset):
                 pre_transform = T.Compose(_transforms)
                 data = pre_transform(data)
 
-            torch.save(data, osp.join(Constants.ROOT+"POY/", f'{protein}.pt'))
+            torch.save(data, osp.join(Constants.ROOT + "POY/", f'{protein}.pt'))
 
     def len(self):
         return len(self.data)
@@ -220,13 +228,19 @@ class PDBDataset(Dataset):
         #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
     def get_test(self, test_file):
+        all_test = set(self.all_test.keys())
 
-        all_test = set(pickle_load(Constants.ROOT + "eval/all_map").keys())
-        x = set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file)))
+        print(len(all_test))
+        x = set(
+            read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file)))
+        print(len(x))
+        exit()
+        print(len(x.difference(all_test)))
 
+        print(len(all_test.difference(x)))
+
+        exit()
         return list(x.intersection(all_test))
-
-
 
 
 def load_dataset(root=None, **kwargs):

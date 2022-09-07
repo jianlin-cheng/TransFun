@@ -1,7 +1,7 @@
 import os
 
 import pandas as pd
-from torch_geometric.graphgym import optim
+import torch.optim as optim
 import torch
 import Constants
 import params1
@@ -59,25 +59,26 @@ model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
 
-# define checkpoint saved path
-ckp_dir = Constants.ROOT + 'may/{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
-ckp_pth = ckp_dir + "current_checkpoint.pt"
-print(ckp_pth)
-# load the saved checkpoint
-if os.path.exists(ckp_pth):
-    print("Loading model checkpoint @ {}".format(ckp_pth))
-    model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
-model.eval()
+# # define checkpoint saved path
+# ckp_dir = Constants.ROOT + 'may/{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
+# ckp_pth = ckp_dir + "current_checkpoint.pt"
+# print(ckp_pth)
+# # load the saved checkpoint
+# if os.path.exists(ckp_pth):
+#     print("Loading model checkpoint @ {}".format(ckp_pth))
+#     model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
+# model.eval()
+#
+# print("********************************-Parameters-***************************************")
+# # print("model = ", model)
+# # print("optimizer = ", optimizer)
+# print("start_epoch = ", current_epoch)
+# print("valid_loss_min = ", min_val_loss)
+# print("valid_loss_min = {:.6f}".format(min_val_loss))
+# #  # for param in model.parameters():
+# #  #   print(param.data)
+# print("********************************-Parameters-***************************************")
 
-print("********************************-Parameters-***************************************")
-# print("model = ", model)
-# print("optimizer = ", optimizer)
-print("start_epoch = ", current_epoch)
-print("valid_loss_min = ", min_val_loss)
-print("valid_loss_min = {:.6f}".format(min_val_loss))
-#  # for param in model.parameters():
-#  #   print(param.data)
-print("********************************-Parameters-***************************************")
 
 kwargs = {
     'seq_id': args.seq,

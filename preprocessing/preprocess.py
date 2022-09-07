@@ -68,6 +68,10 @@ generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("test_cropped"),
                         "/data/pycharm/TransFunData/data/bnm",
                         "/data/pycharm/TransFun/preprocessing")
 
+# generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("shorter"),
+#                         "/data/pycharm/TransFunData/data/shorter",
+#                         "/data/pycharm/TransFun/preprocessing")
+
 exit()
 
 
