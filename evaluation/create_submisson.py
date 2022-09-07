@@ -1,5 +1,4 @@
 import os
-
 import pandas as pd
 from torch_geometric.graphgym import optim
 import torch
@@ -12,11 +11,7 @@ from preprocessing.utils import load_ckp, pickle_save, pickle_load
 from torch_geometric.loader import DataLoader
 
 
-NAMESPACES = {
-    "cellular_component": "cc",
-    "molecular_function": "mf",
-    "biological_process": "bp",
-}
+TEST_FILE = "leafonly_MFO"
 
 def write_sumssion_file(mylist, file_name):
     with open(Constants.ROOT + 'eval/predicted/{}.txt'.format(file_name), 'w') as fp:
@@ -33,7 +28,7 @@ def create_submssion_file(group_name, model, keywords, proteins, probabilities):
         assert len(num_class) == len(i[1])
         for j in zip(num_class, i[1]):
             # if j[1] > 0.01:
-            mylist.append((i[0],  j[0], format(j[1], ".2f")))
+            mylist.append((i[0], j[0], format(j[1], ".2f")))
     mylist.append(("END", "", ""))
     return mylist
 
@@ -42,14 +37,12 @@ args = get_parser()
 if args.cuda:
     device = 'cuda'
 
-
 if args.ont == 'molecular_function':
     ont_kwargs = params1.mol_kwargs
 elif args.ont == 'cellular_component':
     ont_kwargs = params1.cc_kwargs
 elif args.ont == 'biological_process':
     ont_kwargs = params1.bio_kwargs
-
 
 # model
 model = model = GCN3(**ont_kwargs)
@@ -62,12 +55,13 @@ lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs
 # define checkpoint saved path
 ckp_dir = Constants.ROOT + 'may/{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
 ckp_pth = ckp_dir + "current_checkpoint.pt"
-print(ckp_pth)
+
 # load the saved checkpoint
 if os.path.exists(ckp_pth):
     print("Loading model checkpoint @ {}".format(ckp_pth))
     model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
 model.eval()
+
 
 print("********************************-Parameters-***************************************")
 # print("model = ", model)
@@ -79,15 +73,15 @@ print("valid_loss_min = {:.6f}".format(min_val_loss))
 #  #   print(param.data)
 print("********************************-Parameters-***************************************")
 
+
 kwargs = {
     'seq_id': args.seq,
     'ont': args.ont,
     'session': 'test',
-    'test_file': 'leafonly_MFO.txt'
+    'test_file': '{}.txt'.format(TEST_FILE)
 }
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 print(f'# Evaluation proteins: {len(dataset)}')
-
 
 test_dataloader = DataLoader(dataset,
                              batch_size=32,
@@ -96,6 +90,11 @@ test_dataloader = DataLoader(dataset,
                              # exclude_keys=edge_types,
                              shuffle=True)
 
+for i in test_dataloader:
+    print(i)
+
+
+exit()
 probabilities = []
 proteins = []
 for data in test_dataloader:
@@ -103,10 +102,9 @@ for data in test_dataloader:
         proteins.extend(data['atoms'].protein)
         probabilities.extend(model(data.to(device)).tolist())
 
-
 mylist = create_submssion_file(group_name="Frimpz", model=1,
                                keywords="sequence alignment",
                                proteins=proteins, probabilities=probabilities)
 
 name = kwargs['test_file'].split("_")
-write_sumssion_file(mylist, file_name=NAMESPACES[kwargs['ont']]+"_"+str(1)+"_"+"all")
+write_sumssion_file(mylist, file_name=NAMESPACES[kwargs['ont']] + "_" + str(1) + "_" + "all")

@@ -82,9 +82,9 @@ def create_class_weights(cnter):
     total = sum(class_weights)  # /100
     # _max = max(class_weights)
     # print(max(class_weights), min(class_weights), total)
-    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
-    # class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
-    class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    #class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    #class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
