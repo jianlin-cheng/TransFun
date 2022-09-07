@@ -1,11 +1,12 @@
 import os
 import shutil
+import urllib
 
 import torch
 
 import Constants
-from preprocessing.utils import read_test_set, fasta_to_dictionary, pickle_save, pickle_load, cafa_fasta_to_dictionary, \
-    create_seqrecord, get_sequence_from_pdb, count_proteins
+from preprocessing.utils import fasta_to_dictionary, pickle_save, pickle_load, cafa_fasta_to_dictionary, \
+    create_seqrecord, get_sequence_from_pdb, count_proteins, read_test_set_x
 from Bio import SeqIO
 
 ONTS = ['BPO', 'MFO', 'CCO']
@@ -96,25 +97,24 @@ def map_cafaID_proteinnames():
 
     full_mapping = []
     for mapping_file in all_mappings:
-        maps = read_test_set(pth.format("sp_species.{}.map".format(mapping_file)))
+        maps = read_test_set_x(pth.format("sp_species.{}.map".format(mapping_file)))
         maps = [map + [mapping_file] for map in maps]
         full_mapping.extend(maps)
 
     for mapping_file in xtra_mappings[1:3]:
-        maps = read_test_set(pth.format("mapping.{}.map".format(mapping_file)))
+        maps = read_test_set_x(pth.format("mapping.{}.map".format(mapping_file)))
         maps = [map + [mapping_file] for map in maps]
         full_mapping.extend(maps)
 
-    maps = read_test_set(pth.format("target_moonlight.map"))
+    maps = read_test_set_x(pth.format("target_moonlight.map"))
     maps = [map + ["moonlight"] for map in maps]
     full_mapping.extend(maps)
 
-    maps = read_test_set(pth.format("mapping.7227.map"))
+    maps = read_test_set_x(pth.format("mapping.7227.map"))
     maps = [map[0:2] + ["7227"] for map in maps]
     full_mapping.extend(maps)
 
     full_mapping = {i[0]: (i[1], i[2]) for i in full_mapping}
-
 
     return full_mapping
 
@@ -161,74 +161,156 @@ lop = {'T37020005978', 'T100900003996', 'T96060017383', 'T2848120001267', 'T3702
        'T37020003398', 'T79550002846', 'T2848120000294', 'T96060012976', 'T96060001910', 'T101160004422',
        'T37020010586', 'T96060010968'}
 
+manually_generated = set(['T96060003091', 'T96060005689', 'T100900002635', 'T96060009184',
+                      'T2375610004864', 'T2375610004865', 'T2243080001793', 'T2375610010480',
+                      'T833330004144', 'T96060001100', 'T96060017154', 'T79550001022', 'T2375610000901',
+                      'T79550002902', 'T79550000152', 'T833330003219', 'T96060004331', 'T96060013713',
+                      'T833330003834', 'T2848120000967', 'T2375610002991', 'T96060010649', 'T2730570000007',
+                      'T79550002578', 'T100900014682', 'T96060008750', 'T2375610000899', 'T96060017781',
+                      'T96060001318', 'T96060012233', 'T2089630000462', 'T37020006152', 'T37020014570',
+                      'T96060010171', 'T96060002555', 'T96060017658', 'T2375610012115', 'T96060015551'])
+def get_test():
+    uniprot_mapping = "/data/pycharm/TransFunData/data/uniprot/idmapping.dat"
+    alphafold_mapping = "/data/pycharm/TransFunData/data/uniprot/accession_ids.csv"
 
-# Collect proteins
-def collect_test():
-    test_proteins_list = []
-    all_map = {}
-    no_alpha_fold = set()
-    cafa_id_not_mapped = set()
-
-    map_names = fasta_to_dictionary(Constants.ROOT + 'uniprot/uniprot_sprot.fasta', identifier='protein_name')
-    cafa_fasta = cafa_fasta_to_dictionary(Constants.ROOT + 'supplementary_data/cafa3/CAFA3_targets/Target '
-                                                           'files/all.fasta')
     cafaID_proteins = map_cafaID_proteinnames()
     test_proteins = get_test_proteins(use='list')
+    cafa_fasta = cafa_fasta_to_dictionary(Constants.ROOT + 'supplementary_data/cafa3/CAFA3_targets/Target '
+                                                           'files/all.fasta')
+
+    src = os.path.join(Constants.ROOT, "eval/all_test_cafa_name")
+    if os.path.isfile(src + ".pickle"):
+        testproteins = pickle_load(src)
+    else:
+        testproteins = set()
+        for ont in ONTS:
+            for test_protein in test_proteins[ont]:
+                if test_protein in cafaID_proteins:
+                    name = cafaID_proteins[test_protein][0]
+                    testproteins.add((test_protein, name))
+        pickle_save(testproteins, src)
+
+    # get uniprot IDs
+    src = os.path.join(Constants.ROOT, "eval/all_test_cafa_name_uniprot")
+    if os.path.isfile(src + ".pickle"):
+        testproteins = pickle_load(src)
+    else:
+        dbases = {'UniProtKB-ID', 'FlyBase'}
+        data = list()
+        testproteins = {i[1]: i for i in testproteins}
+        with open(uniprot_mapping) as file:
+            for line in file:
+                tp = line.split('\t')[2].strip()
+                db = line.split('\t')[1].strip()
+                un = line.split('\t')[0].strip()
+                if tp in testproteins and db in dbases:
+                    data.append(list(testproteins[tp]) + [un, db])
+        pickle_save(data, src)
+        testproteins = data
+
+    # get alphafold
+    src = os.path.join(Constants.ROOT, "eval/all_test_cafa_name_uniprot_alpha")
+    if os.path.isfile(src + ".pickle"):
+        testproteins = pickle_load(src)
+    else:
+        test_protein_dic = {i[2]: i for i in testproteins}
+        with open(alphafold_mapping) as file:
+            for line in file:
+                x = line.split(',')
+                if x[0] in test_protein_dic:
+                    test_protein_dic[x[0]].append(x[3])
+        pickle_save(list(test_protein_dic.values()), src)
+        testproteins = list(test_protein_dic.values())
+
+    # Compare test with alphafold
+    alpha_fold_test_curated = {}
+
+    for i in testproteins:
+        if i[0] in alpha_fold_test_curated:
+            alpha_fold_test_curated[i[0]].append(i)
+        else:
+            alpha_fold_test_curated[i[0]] = [i, ]
+
+    test_proteins = get_test_proteins(use='list')
+    all_set = set()
+
+    curated_test_proteins_list = []
+    available_proteins = {}
+    unmatched = set()
 
     for ont in ONTS:
-        for test_protein in test_proteins[ont]:
+        for protein in test_proteins[ont]:
+            all_set.add(protein)
+            if protein in alpha_fold_test_curated:
+                for i in alpha_fold_test_curated[protein]:
+                    if len(i) == 5:
+                        if protein not in available_proteins:
+                            src = os.path.join(Constants.ROOT, "alphafold/{}-model_v2.pdb.gz".format(i[4]))
+                            alpha_fold_seq = get_sequence_from_pdb(src, "A")
+                            if alpha_fold_seq == str(cafa_fasta[protein][3]):
+                                curated_test_proteins_list.append(create_seqrecord(id="cafa|" + protein + "|" + i[2],
+                                                                                   description=i[1],
+                                                                                   seq=str(alpha_fold_seq)))
+                                available_proteins[protein] = (i[2], i[1])
+                                break
+                            else:
+                                unmatched.add(protein)
 
-            if test_protein in cafaID_proteins:
-                name = cafaID_proteins[test_protein][0]
-
-                # uniprot ID
-                if name in map_names:
-                    tmp = map_names[name][0].split("|")[1]
-                else:
-                    tmp = ""
-
-                if not test_protein in all_map:
-                    src = os.path.join(Constants.ROOT, "alphafold/AF-{}-F1-model_v2.pdb.gz".format(tmp))
-                    if os.path.isfile(src):
-                        alpha_fold_seq = get_sequence_from_pdb(src, "A")
-                        # if alpha_fold_seq != str(cafa_fasta[name][3]):
-                        #     unmatched_with_alpha_fold.add(test_protein)
-                        # else:
-                        all_map[test_protein] = (name, tmp)
-                        test_proteins_list.append(create_seqrecord(id="cafa|" + test_protein + "|" + name,
-                                                                   description=tmp,
+    # Replaced with alphafold
+    unmatched = unmatched.difference(set(list(available_proteins.keys())))
+    for i in unmatched:
+        for j in alpha_fold_test_curated[i]:
+            if len(j) == 5:
+                src = os.path.join(Constants.ROOT, "alphafold/{}-model_v2.pdb.gz".format(j[4]))
+                alpha_fold_seq = get_sequence_from_pdb(src, "A")
+                curated_test_proteins_list.append(create_seqrecord(id="cafa|" + j[0] + "|" + j[2],
+                                                                   description=j[1],
                                                                    seq=str(alpha_fold_seq)))
-                    else:
-                        no_alpha_fold.add(test_protein)
-            else:
-                cafa_id_not_mapped.add(test_protein)
+                available_proteins[i] = (j[2], j[1])
 
-    # SeqIO.write(test_proteins_list, Constants.ROOT + "eval/test.fasta".format("test"), "fasta")
-    # pickle_save(all_map, Constants.ROOT + "eval/all_map")
-    # pickle_save(no_alpha_fold, Constants.ROOT + "eval/no_alpha_fold")
-    # pickle_save(cafa_id_not_mapped, Constants.ROOT + "eval/cafa_id_not_mapped")
-    print(len(all_map), len(no_alpha_fold), len(cafa_id_not_mapped))
-    print(sorted(cafa_id_not_mapped))
+    # Generated from alphafold
+    x = manually_generated.intersection(all_set.difference(set(list(available_proteins.keys()))))
+    for i in x:
+        src = os.path.join(Constants.ROOT, "alphafold/{}.pdb.gz".format(i))
+
+        alpha_fold_seq = get_sequence_from_pdb(src, "A")
+
+        assert alpha_fold_seq == str(cafa_fasta[i][3])
+
+        curated_test_proteins_list.append(create_seqrecord(id="cafa|" + i + "|" + i,
+                                                           description=i,
+                                                           seq=str(alpha_fold_seq)))
+        available_proteins[i] = (i, i)
 
 
-collect_test()
+    pickle_save(available_proteins, Constants.ROOT + "all_map")
+    SeqIO.write(curated_test_proteins_list, Constants.ROOT + "eval/test.fasta".format("test"), "fasta")
 
-# print(pickle_load(Constants.ROOT + "eval/no_alpha_fold"))
-# print(pickle_load(Constants.ROOT + "eval/cafa_id_not_mapped"))
+    print(len(all_set.difference(set(list(available_proteins.keys())))))
+    #
+    # print(all_set.difference(set(available_proteins.keys())))
+    # print(len(all_set), len(curated_test_proteins_list), len(all_set.difference(set(available_proteins.keys()))))
+
+
+get_test()
 
 exit()
 
+
 def collect_seq_gt_1021():
-    tmp = []
+    longer = []
+    shorter = []
     input_seq_iterator = SeqIO.parse(Constants.ROOT + "eval/test.fasta", "fasta")
     for record in input_seq_iterator:
         if len(record.seq) > 1021:
-            tmp.append(record)
-    SeqIO.write(tmp, Constants.ROOT + "eval/{}.fasta".format("longer"), "fasta")
+            longer.append(record)
+        else:
+            shorter.append(record)
+    SeqIO.write(longer, Constants.ROOT + "eval/{}.fasta".format("longer"), "fasta")
+    SeqIO.write(shorter, Constants.ROOT + "eval/{}.fasta".format("shorter"), "fasta")
 
 
 # collect_seq_gt_1021()
-
 
 def crop_fasta():
     new_seqs = []
@@ -247,10 +329,12 @@ def crop_fasta():
 
 # crop_fasta()
 
+
 def merge_pts():
     files = pickle_load(Constants.ROOT + "eval/cropped_files")
     unique_files = {i.split("_____")[0] for i in files}
     levels = {i.split("_____")[1] for i in files}
+    embeddings = [0, 32, 33]
 
     for i in unique_files:
         print(i)
@@ -266,26 +350,26 @@ def merge_pts():
             splits = index['label'].split("|")
             data['label'] = splits[0] + "|" + splits[1].split("_____")[0] + "|" + splits[2]
 
-            for rep in [0, 32, 33]:
+            for rep in embeddings:
+                assert torch.equal(index['mean_representations'][rep], torch.mean(index['representations'][rep], dim=0))
+
                 if rep in data['representations']:
                     data['representations'][rep] = torch.cat(
                         (data['representations'][rep], index['representations'][rep]))
                 else:
                     data['representations'][rep] = index['representations'][rep]
 
-                if rep in data['mean_representations']:
-                    data['mean_representations'][rep] = torch.cat(
-                        (data['mean_representations'][rep], index['mean_representations'][rep]))
-                else:
-                    data['mean_representations'][rep] = index['mean_representations'][rep]
-
         assert len(fasta[i][3]) == data['representations'][33].shape[0]
+
+        for rep in embeddings:
+            data['mean_representations'][rep] = torch.mean(data['representations'][rep], dim=0)
 
         print("saving {}".format(i))
         torch.save(data, Constants.ROOT + "merged/{}.pt".format(i))
 
 
-# merge_pts()
+merge_pts()
+
 
 # script to delete and remake
 def delete_from_processed(pth):
@@ -295,20 +379,8 @@ def delete_from_processed(pth):
         os_pth = pth + "{}.pt".format(i)
         if os.path.exists(os_pth):
             os.remove(os_pth)
-            print("deleted "+ os_pth)
-
+            print("deleted " + os_pth)
 
 # delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
 
 # delete_from_processed(pth=Constants.ROOT + "processed/")
-
-
-# x = pickle_load(Constants.ROOT + "eval/all_map").keys()
-# sam = []
-# psam = []
-# for i in x:
-#     os_pth = Constants.ROOT + "processed/{}.pt".format(i)
-#     if os.path.exists(os_pth):
-#         sam.append(os_pth)
-#     else:
-#         psam.append(os_pth)

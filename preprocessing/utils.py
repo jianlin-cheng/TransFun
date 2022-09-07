@@ -71,7 +71,7 @@ def fasta_to_dictionary(fasta_file, identifier='protein_id'):
 def cafa_fasta_to_dictionary(fasta_file):
     data = {}
     for seq_record in SeqIO.parse(fasta_file, "fasta"):
-        data[seq_record.description.split(" ")[1]] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
+        data[seq_record.description.split(" ")[0]] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
     return data
 
 
@@ -205,8 +205,16 @@ def read_test_set(file_name):
     with open(file_name) as file:
         lines = file.readlines()
 
+    #lines = [line.rstrip('\n').split("\t") for line in lines]
+    lines = [line.rstrip('\n').split("\t")[0] for line in lines]
+    return lines
+
+def read_test_set_x(file_name):
+    with open(file_name) as file:
+        lines = file.readlines()
+
     lines = [line.rstrip('\n').split("\t") for line in lines]
-    # lines = [line.rstrip('\n').split("\t")[0] for line in lines]
+    #lines = [line.rstrip('\n').split("\t")[0] for line in lines]
     return lines
 
 
