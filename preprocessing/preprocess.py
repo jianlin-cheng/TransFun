@@ -64,9 +64,9 @@ def generate_bulk_embedding(fasta_file, output_dir, path_to_extract_file):
 
 # print(count_proteins_biopython(Constants.ROOT + "eval/{}_1.fasta".format("test")))
 # exit()
-generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("test_cropped"),
-                        "/data/pycharm/TransFunData/data/bnm",
-                        "/data/pycharm/TransFun/preprocessing")
+# generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("cropped"),
+#                         "/data/pycharm/TransFunData/data/bnm",
+#                         "/data/pycharm/TransFun/preprocessing")
 
 # generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("shorter"),
 #                         "/data/pycharm/TransFunData/data/shorter",

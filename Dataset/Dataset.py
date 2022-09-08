@@ -10,12 +10,12 @@ import Constants
 from Dataset.distanceTransform import myDistanceTransform
 from Dataset.myKnn import myKNNGraph
 from Dataset.myRadiusGraph import myRadiusGraph
-from Dataset.utils import find_files, process_pdbpandas, get_knn
+from Dataset.utils import find_files, process_pdbpandas, get_knn, generate_Identity_Matrix
 import torch_geometric.transforms as T
 from torch_geometric.data import Data
 from Dataset.AdjacencyTransform import AdjacencyFeatures
 from preprocessing.utils import pickle_load, pickle_save, get_sequence_from_pdb, fasta_to_dictionary, collect_test, \
-    read_test_set, read_test
+    read_test_set, read_test, cafa_fasta_to_dictionary
 import pandas as pd
 import random
 
@@ -86,6 +86,7 @@ class PDBDataset(Dataset):
     def processed_dir(self) -> str:
         return self.root + "/processed/"
 
+
     @property
     def raw_file_names(self):
         return self.raw_file_list
@@ -116,14 +117,16 @@ class PDBDataset(Dataset):
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
             if self.session == "test":
-                print(protein)
-                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.all_test[protein][0])
-                print(raw_path)
-                exit()
+                if self.all_test[protein][0]:
+                    raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.all_test[protein][0])
+                else:
+                    raw_path = None
+                    self.fasta = cafa_fasta_to_dictionary(Constants.ROOT + 'supplementary_data/cafa3/CAFA3_targets/Target '
+                                                           'files/all.fasta')
             else:
                 raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
 
-            print(raw_path)
+            # print(raw_path)
 
             labels = {
                 'molecular_function': [],
@@ -156,11 +159,14 @@ class PDBDataset(Dataset):
                 for label in labels:
                     labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
 
-            emb = torch.load(self.root + "/esm1/{}.pt".format(protein))
+            emb = torch.load(self.root + "/esm/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
 
-            node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
+            if raw_path:
+                node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
+            else:
+                node_coords, sequence_features, sequence_letters = generate_Identity_Matrix(embedding_features_per_residue.shape, self.fasta[protein])
 
             # assert self.fasta[protein][3] == sequence_letters
 
@@ -228,19 +234,11 @@ class PDBDataset(Dataset):
         #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
     def get_test(self, test_file):
-        all_test = set(self.all_test.keys())
-
-        print(len(all_test))
-        x = set(
-            read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file)))
-        print(len(x))
-        exit()
-        print(len(x.difference(all_test)))
-
-        print(len(all_test.difference(x)))
-
-        exit()
-        return list(x.intersection(all_test))
+        # all_test = set(self.all_test.keys())
+        # all_test = set(self.all_test)
+        x = list(set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file))))
+        x = pickle_load(self.root+"/eval/all_test_protein")
+        return x
 
 
 def load_dataset(root=None, **kwargs):

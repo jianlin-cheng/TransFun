@@ -90,6 +90,8 @@ dataset = load_dataset(root=Constants.ROOT, **kwargs)
 print(f'# Evaluation proteins: {len(dataset)}')
 
 
+exit()
+
 test_dataloader = DataLoader(dataset,
                              batch_size=32,
                              drop_last=False,

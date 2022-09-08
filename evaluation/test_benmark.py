@@ -1,3 +1,4 @@
+import difflib
 import os
 import shutil
 import urllib
@@ -162,13 +163,15 @@ lop = {'T37020005978', 'T100900003996', 'T96060017383', 'T2848120001267', 'T3702
        'T37020010586', 'T96060010968'}
 
 manually_generated = set(['T96060003091', 'T96060005689', 'T100900002635', 'T96060009184',
-                      'T2375610004864', 'T2375610004865', 'T2243080001793', 'T2375610010480',
-                      'T833330004144', 'T96060001100', 'T96060017154', 'T79550001022', 'T2375610000901',
-                      'T79550002902', 'T79550000152', 'T833330003219', 'T96060004331', 'T96060013713',
-                      'T833330003834', 'T2848120000967', 'T2375610002991', 'T96060010649', 'T2730570000007',
-                      'T79550002578', 'T100900014682', 'T96060008750', 'T2375610000899', 'T96060017781',
-                      'T96060001318', 'T96060012233', 'T2089630000462', 'T37020006152', 'T37020014570',
-                      'T96060010171', 'T96060002555', 'T96060017658', 'T2375610012115', 'T96060015551'])
+                          'T2375610004864', 'T2375610004865', 'T2243080001793', 'T2375610010480',
+                          'T833330004144', 'T96060001100', 'T96060017154', 'T79550001022', 'T2375610000901',
+                          'T79550002902', 'T79550000152', 'T833330003219', 'T96060004331', 'T96060013713',
+                          'T833330003834', 'T2848120000967', 'T2375610002991', 'T96060010649', 'T2730570000007',
+                          'T79550002578', 'T100900014682', 'T96060008750', 'T2375610000899', 'T96060017781',
+                          'T96060001318', 'T96060012233', 'T2089630000462', 'T37020006152', 'T37020014570',
+                          'T96060010171', 'T96060002555', 'T96060017658', 'T2375610012115', 'T96060015551'])
+
+
 def get_test():
     uniprot_mapping = "/data/pycharm/TransFunData/data/uniprot/idmapping.dat"
     alphafold_mapping = "/data/pycharm/TransFunData/data/uniprot/accession_ids.csv"
@@ -256,22 +259,42 @@ def get_test():
                             else:
                                 unmatched.add(protein)
 
+
     # Replaced with alphafold
     unmatched = unmatched.difference(set(list(available_proteins.keys())))
     for i in unmatched:
-        for j in alpha_fold_test_curated[i]:
-            if len(j) == 5:
-                src = os.path.join(Constants.ROOT, "alphafold/{}-model_v2.pdb.gz".format(j[4]))
-                alpha_fold_seq = get_sequence_from_pdb(src, "A")
-                curated_test_proteins_list.append(create_seqrecord(id="cafa|" + j[0] + "|" + j[2],
-                                                                   description=j[1],
-                                                                   seq=str(alpha_fold_seq)))
-                available_proteins[i] = (j[2], j[1])
+        possible_matches = alpha_fold_test_curated[i]
+
+        # Just one match
+        if len(possible_matches) == 1 and len(possible_matches[0]) == 5:
+            src = os.path.join(Constants.ROOT, "alphafold/{}-model_v2.pdb.gz".format(possible_matches[0][4]))
+            alpha_fold_seq = get_sequence_from_pdb(src, "A")
+            curated_test_proteins_list.append(create_seqrecord(id="cafa|" + possible_matches[0][0] + "|" +
+                                                                  possible_matches[0][2],
+                                                               description=possible_matches[0][1],
+                                                               seq=str(alpha_fold_seq)))
+            available_proteins[i] = (possible_matches[0][2], possible_matches[0][1])
+        else:
+            tmp = {}
+            for j in possible_matches:
+                if len(j) == 5:
+                    src = os.path.join(Constants.ROOT, "alphafold/{}-model_v2.pdb.gz".format(j[4]))
+                    alpha_fold_seq = get_sequence_from_pdb(src, "A")
+                    tmp[alpha_fold_seq] = (j[0], j[1], j[2])
+
+            similar = difflib.get_close_matches(str(cafa_fasta[i][3]), list(tmp.keys()), n=1)
+
+            if len(similar) > 0:
+                curated_test_proteins_list.append(create_seqrecord(id="cafa|" +  tmp[similar[0]][0] + "|" +
+                                                                      tmp[similar[0]][2],
+                                                                   description=tmp[similar[0]][1],
+                                                                   seq=similar[0]))
+                available_proteins[tmp[similar[0]][0]] = (tmp[similar[0]][2], tmp[similar[0]][1])
 
     # Generated from alphafold
     x = manually_generated.intersection(all_set.difference(set(list(available_proteins.keys()))))
     for i in x:
-        src = os.path.join(Constants.ROOT, "alphafold/{}.pdb.gz".format(i))
+        src = os.path.join(Constants.ROOT, "alphafold/AF-{}-F1-model_v2.pdb.gz".format(i))
 
         alpha_fold_seq = get_sequence_from_pdb(src, "A")
 
@@ -282,20 +305,26 @@ def get_test():
                                                            seq=str(alpha_fold_seq)))
         available_proteins[i] = (i, i)
 
+    x = all_set.difference(set(list(available_proteins.keys())))
+    for i in x:
+        curated_test_proteins_list.append(create_seqrecord(id="cafa|" + i + "|" + i,
+                                                           description=i,
+                                                           seq=str(cafa_fasta[i][3])))
+        available_proteins[i] = (None, None)
 
-    pickle_save(available_proteins, Constants.ROOT + "all_map")
+    '''
+    all_map -> dictionary of test protein; 
+            if name & uniprotID: cafaID as key, (name, uniprotID) as value use uniprotID to get pdb
+            if manually generated pdb: cafaID as key, (cafaID, cafaID) as value use cafaIDto get pdb
+            if no pdb: cafaID as key, (None, None) as value generate identity matrix as structure.
+    '''
+    pickle_save(available_proteins, Constants.ROOT + "eval/all_map")
+    pickle_save(all_set, Constants.ROOT + "eval/all_test_protein")
     SeqIO.write(curated_test_proteins_list, Constants.ROOT + "eval/test.fasta".format("test"), "fasta")
 
-    print(len(all_set.difference(set(list(available_proteins.keys())))))
-    #
-    # print(all_set.difference(set(available_proteins.keys())))
-    # print(len(all_set), len(curated_test_proteins_list), len(all_set.difference(set(available_proteins.keys()))))
 
-
-get_test()
-
-exit()
-
+# get_test()
+# exit()
 
 def collect_seq_gt_1021():
     longer = []
@@ -311,7 +340,9 @@ def collect_seq_gt_1021():
 
 
 # collect_seq_gt_1021()
+# exit()
 
+#   Divide sequences greater than 1021 into pieces.
 def crop_fasta():
     new_seqs = []
     files = []
@@ -323,11 +354,12 @@ def crop_fasta():
             seq = str(record.seq[i * 1021:(i * 1021) + 1021])
             new_seqs.append(create_seqrecord(id=id, name=id, description="", seq=seq))
             files.append(tmp)
-    SeqIO.write(new_seqs, Constants.ROOT + "eval/{}_cropped.fasta".format("test"), "fasta")
+    SeqIO.write(new_seqs, Constants.ROOT + "eval/cropped.fasta", "fasta")
     pickle_save(files, Constants.ROOT + "eval/cropped_files")
 
 
 # crop_fasta()
+# exit()
 
 
 def merge_pts():
@@ -369,18 +401,29 @@ def merge_pts():
 
 
 merge_pts()
+exit()
 
+# Move the merged files and the esm for shorter sequences to appropriate folder. esm and generate
 
 # script to delete and remake
+# def delete_from_processed(pth):
+#     files = pickle_load(Constants.ROOT + "eval/all_test_protein")
+#     unique_files = {i.split("_____")[0] for i in files}
+#     for i in unique_files:
+#         os_pth = pth + "{}.pt".format(i)
+#         if os.path.exists(os_pth):
+#             os.remove(os_pth)
+#             print("deleted " + os_pth)
+
+# delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
+
+
 def delete_from_processed(pth):
-    files = pickle_load(Constants.ROOT + "eval/cropped_files")
-    unique_files = {i.split("_____")[0] for i in files}
-    for i in unique_files:
+    files = pickle_load(Constants.ROOT + "eval/all_test_protein")
+    for i in files:
         os_pth = pth + "{}.pt".format(i)
         if os.path.exists(os_pth):
             os.remove(os_pth)
             print("deleted " + os_pth)
 
-# delete_from_processed(pth="/media/fbqc9/Icarus/processed/")
-
-# delete_from_processed(pth=Constants.ROOT + "processed/")
+delete_from_processed(pth=Constants.ROOT + "processed/")
