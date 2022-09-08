@@ -68,7 +68,7 @@ class PDBDataset(Dataset):
                 self.all_test = pickle_load(Constants.ROOT + "eval/all_map")
                 self.data = self.get_test(self.test_file)
 
-                ## create test data-set
+                # create test data-set
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -116,10 +116,7 @@ class PDBDataset(Dataset):
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
             if self.session == "test":
-                print(protein)
                 raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.all_test[protein][0])
-                print(raw_path)
-                exit()
             else:
                 raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
 
@@ -164,8 +161,8 @@ class PDBDataset(Dataset):
 
             # assert self.fasta[protein][3] == sequence_letters
 
-            print(embedding_features_per_residue.shape[0], node_coords.shape[0])
-            print(embedding_features_per_residue.shape[1], embedding_features_per_sequence.shape[1])
+            # print(embedding_features_per_residue.shape[0], node_coords.shape[0])
+            # print(embedding_features_per_residue.shape[1], embedding_features_per_sequence.shape[1])
 
             assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
             assert embedding_features_per_residue.shape[1] == embedding_features_per_sequence.shape[1]
@@ -219,28 +216,21 @@ class PDBDataset(Dataset):
         elif self.session == "valid" or self.session == "selected" or self.session == "test":
             rep = self.data[idx]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-            #  torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
-        # elif :
-        #     rep = self.data[idx]
-        #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-        # elif :
-        #     rep = self.data[idx]
-        #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
     def get_test(self, test_file):
+        # all_test -> all test proteins
         all_test = set(self.all_test.keys())
 
-        print(len(all_test))
-        x = set(
-            read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file)))
-        print(len(x))
-        exit()
-        print(len(x.difference(all_test)))
+        # test file under consideration
+        if "leafonly" in test_file:
+            test_proteins = set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}" \
+                                              .format(self.root, test_file)))
+        else:
+            test_proteins = set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/lists/{}" \
+                                              .format(self.root, test_file)))
 
-        print(len(all_test.difference(x)))
-
-        exit()
-        return list(x.intersection(all_test))
+        test_proteins = list(test_proteins.intersection(all_test))
+        return test_proteins
 
 
 def load_dataset(root=None, **kwargs):

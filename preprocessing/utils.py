@@ -62,7 +62,8 @@ def fasta_to_dictionary(fasta_file, identifier='protein_id'):
     data = {}
     for seq_record in SeqIO.parse(fasta_file, "fasta"):
         if "|" in seq_record.id:
-            data[seq_record.id.split("|")[loc]] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
+            data[seq_record.id.split("|")[loc]] = (
+            seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
         else:
             data[seq_record.id] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
     return data
@@ -71,7 +72,8 @@ def fasta_to_dictionary(fasta_file, identifier='protein_id'):
 def cafa_fasta_to_dictionary(fasta_file):
     data = {}
     for seq_record in SeqIO.parse(fasta_file, "fasta"):
-        data[seq_record.description.split(" ")[0]] = (seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
+        data[seq_record.description.split(" ")[0]] = (
+        seq_record.id, seq_record.name, seq_record.description, seq_record.seq)
     return data
 
 
@@ -204,17 +206,14 @@ def is_exp_code(code):
 def read_test_set(file_name):
     with open(file_name) as file:
         lines = file.readlines()
-
-    #lines = [line.rstrip('\n').split("\t") for line in lines]
     lines = [line.rstrip('\n').split("\t")[0] for line in lines]
     return lines
+
 
 def read_test_set_x(file_name):
     with open(file_name) as file:
         lines = file.readlines()
-
     lines = [line.rstrip('\n').split("\t") for line in lines]
-    #lines = [line.rstrip('\n').split("\t")[0] for line in lines]
     return lines
 
 
@@ -248,7 +247,8 @@ def test_annotation():
             if i[0] in data:
                 data[i[0]][ts].add(i[1])
             else:
-                data[i[0]] = {'LK_bpo': set(), 'LK_mfo': set(), 'LK_cco': set(), 'NK_bpo': set(), 'NK_mfo': set(), 'NK_cco': set()}
+                data[i[0]] = {'LK_bpo': set(), 'LK_mfo': set(), 'LK_cco': set(), 'NK_bpo': set(), 'NK_mfo': set(),
+                              'NK_cco': set()}
                 data[i[0]][ts].add(i[1])
 
         tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
@@ -256,7 +256,8 @@ def test_annotation():
             if i[0] in data:
                 data[i[0]][ts].add(i[1])
             else:
-                data[i[0]] = {'LK_bpo': set(), 'LK_mfo': set(), 'LK_cco': set(), 'NK_bpo': set(), 'NK_mfo': set(), 'NK_cco': set()}
+                data[i[0]] = {'LK_bpo': set(), 'LK_mfo': set(), 'LK_cco': set(), 'NK_bpo': set(), 'NK_mfo': set(),
+                              'NK_cco': set()}
                 data[i[0]][ts].add(i[1])
 
     return data
@@ -275,7 +276,6 @@ def get_test_classes():
             data.add(i[1])
 
     return data
-
 
 
 def create_cluster(seq_identity=None):
@@ -386,4 +386,3 @@ def draw_architecture(model, data_batch):
     '''
     output = model(data_batch)
     make_dot(output, params=dict(model.named_parameters())).render("rnn_lstm_torchviz", format="png")
-

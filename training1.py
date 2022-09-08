@@ -36,12 +36,13 @@ parser.add_argument('--train_batch', type=int, default=32, help='Training batch 
 parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='all', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 if args.cuda:
     device = 'cuda'
+
 
 kwargs = {
     'seq_id': args.seq,

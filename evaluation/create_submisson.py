@@ -12,6 +12,7 @@ from torch_geometric.loader import DataLoader
 
 
 TEST_FILE = "leafonly_MFO"
+# TEST_FILE = "mfo_HUMAN_type1"
 
 def write_sumssion_file(mylist, file_name):
     with open(Constants.ROOT + 'eval/predicted/{}.txt'.format(file_name), 'w') as fp:
