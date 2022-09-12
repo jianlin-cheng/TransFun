@@ -36,7 +36,7 @@ parser.add_argument('--train_batch', type=int, default=32, help='Training batch 
 parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
 parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='all', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -83,8 +83,8 @@ def create_class_weights(cnter):
     total = sum(class_weights)  # /100
     # _max = max(class_weights)
     # print(max(class_weights), min(class_weights), total)
-    class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
-    #class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
+    # class_weights = torch.tensor([total - i for i in class_weights], dtype=torch.float).to(device)
+    class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
     #class_weights = torch.tensor([total / (i * num_class) for i in class_weights], dtype=torch.float).to(device)
     # class_weights = torch.tensor([_max / i for i in class_weights], dtype=torch.float).to(device)
 
@@ -161,7 +161,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 optimizer.zero_grad()
 
                 output = model(data.to(device))
-                loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
+                loss = criterion(output, getattr(data['atoms'], args.ont).to(device).float())
                 loss = (loss * class_weights).mean()
 
                 loss.backward()
@@ -191,7 +191,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
 
                 output = model(data.to(device))
 
-                _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
+                _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device).float())
                 _val_loss = (_val_loss * class_weights).mean()
                 val_loss += _val_loss.data.item()
 

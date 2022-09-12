@@ -173,7 +173,7 @@ class GCN3(torch.nn.Module):
                               hidden_nf=hidden_channels,
                               n_layers=num_egnn_layers,
                               out_node_nf=num_classes,
-                              in_edge_nf=edge_features,
+                              in_edge_nf=0,
                               attention=True,
                               normalize=True,
                               tanh=True)
@@ -182,7 +182,7 @@ class GCN3(torch.nn.Module):
                               hidden_nf=hidden_channels,
                               n_layers=num_egnn_layers,
                               out_node_nf=int(num_classes / 2),
-                              in_edge_nf=edge_features,
+                              in_edge_nf=0,
                               attention=True,
                               normalize=True,
                               tanh=True)
@@ -191,7 +191,7 @@ class GCN3(torch.nn.Module):
                               hidden_nf=hidden_channels,
                               n_layers=num_egnn_layers,
                               out_node_nf=int(num_classes / 2),
-                              in_edge_nf=edge_features,
+                              in_edge_nf=0,
                               attention=True,
                               normalize=True,
                               tanh=True)
@@ -200,7 +200,7 @@ class GCN3(torch.nn.Module):
                               hidden_nf=hidden_channels,
                               n_layers=num_egnn_layers,
                               out_node_nf=int(num_classes / 4),
-                              in_edge_nf=edge_features,
+                              in_edge_nf=0,
                               attention=True,
                               normalize=True,
                               tanh=True)
@@ -230,22 +230,22 @@ class GCN3(torch.nn.Module):
             to(self.device)]
 
         output_res, pre_pos_res = self.egnn_1(h=x_res,
-                                              x=x_pos,
+                                              x=x_pos.float(),
                                               edges=edge_index,
                                               edge_attr=None, )
 
         output_res_2, pre_pos_res_2 = self.egnn_2(h=output_res,
-                                                  x=x_pos,
+                                                  x=x_pos.float(),
                                                   edges=edge_index,
                                                   edge_attr=None, )
 
         output_res_3, pre_pos_res_3 = self.egnn_4(h=output_res_2,
-                                                  x=net_utils.get_pool(pool_type='mean')(x_pos, x_batch),
+                                                  x=net_utils.get_pool(pool_type='mean')(x_pos.float(), x_batch),
                                                   edges=edge_index_2,
                                                   edge_attr=None)
 
         output_seq, pre_pos_seq = self.egnn_3(h=x_emb_seq,
-                                              x=net_utils.get_pool(pool_type='mean')(x_pos, x_batch),
+                                              x=net_utils.get_pool(pool_type='mean')(x_pos.float(), x_batch),
                                               edges=edge_index_2,
                                               edge_attr=None)
 
@@ -261,6 +261,7 @@ class GCN3(torch.nn.Module):
         output_seq = self.bnrelu2(output_seq)
 
         output = torch.cat([output_res, output_seq, output_res_2, output_res_3], 1)
+
 
         return output
 

@@ -4,7 +4,7 @@ bio_kwargs = {
     'num_classes': 3774,
     'fc2_out': 3000,
     'edge_type': 'cbrt',
-    'edge_features': 0,
+    'edge_features': 1,
     'egnn_layers': 12,
     'layers': 1,
     'device': 'cuda'

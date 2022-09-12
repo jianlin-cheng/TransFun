@@ -60,7 +60,7 @@ class PDBDataset(Dataset):
                         self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
                         self.processed_file_list.append('{}.pt'.format(j))
             elif self.session == "valid":
-                self.data = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session)))
+                self.data = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session+"ation")))
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -237,7 +237,7 @@ class PDBDataset(Dataset):
         # all_test = set(self.all_test.keys())
         # all_test = set(self.all_test)
         x = list(set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file))))
-        x = pickle_load(self.root+"/eval/all_test_protein")
+        # x = pickle_load(self.root+"/eval/all_test_protein")
         return x
 
 
