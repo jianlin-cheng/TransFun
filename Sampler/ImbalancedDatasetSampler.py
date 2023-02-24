@@ -48,7 +48,7 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     # def _get_labels(self, dataset):
     #     if self.callback_get_label:
     #         return self.callback_get_label(dataset)
-    #     elif isinstance(dataset, torch.utils.data.TensorDataset):
+    #     elif isinstance(dataset, torch.utils.data_bp.TensorDataset):
     #         return dataset.tensors[1]
     #     elif isinstance(dataset, torchvision.datasets.MNIST):
     #         return dataset.train_labels.tolist()
@@ -56,9 +56,9 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     #         return [x[1] for x in dataset.imgs]
     #     elif isinstance(dataset, torchvision.datasets.DatasetFolder):
     #         return dataset.samples[:][1]
-    #     elif isinstance(dataset, torch.utils.data.Subset):
+    #     elif isinstance(dataset, torch.utils.data_bp.Subset):
     #         return dataset.dataset.imgs[:][1]
-    #     elif isinstance(dataset, torch.utils.data.Dataset):
+    #     elif isinstance(dataset, torch.utils.data_bp.Dataset):
     #         return dataset.get_labels()
     #     else:
     #         raise NotImplementedError

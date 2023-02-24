@@ -76,7 +76,7 @@ class SMOTE(object):
         n_occ = int(occ[dominant_class].item())
         for i in range(len(occ)):
             if i != dominant_class:
-                # calculate the amount of synthetic data to generate
+                # calculate the amount of synthetic data_bp to generate
                 N = (n_occ - occ[i]) * 100 / occ[i]
                 candidates = X[y == i]
                 xs = self.generate(candidates, N, self.k)

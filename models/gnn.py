@@ -210,7 +210,7 @@ class GCN3(torch.nn.Module):
                                 num_classes + 50, relu=True, bnorm=True)
         # self.fc2 = net_utils.FC(num_classes + int(num_classes / 2),
                                 #num_classes + 50, relu=True, bnorm=True)
-        self.final = net_utils.FC(num_classes + 50, num_classes, relu=False, bnorm=True)
+        self.final = net_utils.FC(num_classes + 50, num_classes, relu=False, bnorm=False)
 
         self.bnrelu1 = net_utils.BNormRelu(num_classes)
         self.bnrelu2 = net_utils.BNormRelu(int(num_classes / 2))

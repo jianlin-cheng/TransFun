@@ -189,10 +189,10 @@ def target_in_swissprot_trembl_no_alpha():
     gps = ["LK_bpo", "LK_mfo", "LK_cco", "NK_bpo", "NK_mfo", "NK_cco"]
     targets = set()
     for ts in gps:
-        ts_func_old = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        ts_func_old = read_test_set("/data_bp/pycharm/TransFunData/data_bp/195-200/{}".format(ts))
         targets.update(set([i[0] for i in ts_func_old]))
 
-        ts_func_new = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        ts_func_new = read_test_set("/data_bp/pycharm/TransFunData/data_bp/205-now/{}".format(ts))
         targets.update(set([i[0] for i in ts_func_new]))
 
     target = []
@@ -259,10 +259,10 @@ def cluster_sequence(seq_id, proteins=None, add_target=False):
             extra_trembl = fasta_to_dictionary(Constants.ROOT + "uniprot/target_and_sequence.fasta",
                                                identifier='protein_id')
             for ts in Constants.TEST_GROUPS:
-                ts_func_old = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+                ts_func_old = read_test_set("/data_bp/pycharm/TransFunData/data_bp/195-200/{}".format(ts))
                 ts_func_old = set([i[0] for i in ts_func_old])
 
-                ts_func_new = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+                ts_func_new = read_test_set("/data_bp/pycharm/TransFunData/data_bp/205-now/{}".format(ts))
                 ts_func_new = set([i[0] for i in ts_func_new])
 
                 print("Adding 195-200 {}".format(ts))
@@ -392,7 +392,7 @@ def write_output_files(protein2go, go2info, seq_id):
     print("Number of GO terms is {} proteins is {}".format(len(go2info), len(protein2go)))
 
     # for each go term count related proteins; if they are from 50 to 5000
-    # then we can add them to our data.
+    # then we can add them to our data_bp.
     for goterm in go2info:
         prots = go2info[goterm]['accessions']
         num = len(prots)

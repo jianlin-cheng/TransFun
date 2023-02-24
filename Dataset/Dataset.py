@@ -35,7 +35,7 @@ class PDBDataset(Dataset):
         self.seq_id = kwargs.get('seq_id', None)
         self.ont = kwargs.get('ont', None)
         self.session = kwargs.get('session', None)
-        self.prot_ids = kwargs.get('prot_ids', None)
+        self.prot_ids = kwargs.get('prot_ids', [])
         self.test_file = kwargs.get('test_file', None)
 
         self.raw_file_list = []
@@ -44,26 +44,17 @@ class PDBDataset(Dataset):
         if self.session == "selected":
             self.data = self.prot_ids
             for i in self.data:
-                self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
+                self.raw_file_list.append('{}'.format(i))
                 self.processed_file_list.append('{}.pt'.format(i))
         else:
-            self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
-            self.annot = self.annot.set_index('Protein').to_dict('index')
-
             if self.session == "train":
-                self.data = pickle_load(Constants.ROOT + "{}/{}/{}".format(self.seq_id, self.ont, self.session))
+                self.data = pickle_load(self.root + "/{}/{}/{}".format(self.seq_id, self.ont, self.session))
                 for i in self.data:
                     for j in self.data[i]:
                         self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
                         self.processed_file_list.append('{}.pt'.format(j))
-            elif self.session == "valid":
-                # self.data_bp = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session+"ation")))
-                self.data = set(
-                    list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session + "ation")))). \
-                    difference(
-                    ["O70481", "Q7KUT2", "P50077", "Q02785", "Q6UY14", "Q8BPQ7", "P18583", "Q8CJ78", "Q9NZM1" "Q5EXX3",
-                     "Q5EXX3", "Q9NZM1", "014924", "Q15334"])
-                self.data = list(self.data)
+            elif self.session == "validation":
+                self.data = list(pickle_load(self.root + "/{}/{}".format(self.seq_id, self.session)))
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -72,8 +63,6 @@ class PDBDataset(Dataset):
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
-
-        self.fasta = fasta_to_dictionary(self.root + 'uniprot/cleaned_missing_target_sequence.fasta')
 
         super().__init__(self.root, transform, pre_transform, pre_filter)
 
@@ -106,7 +95,6 @@ class PDBDataset(Dataset):
                 # download
 
     def process(self):
-        onts = ['molecular_function', 'biological_process', 'cellular_component']
         rem_files = set(self.processed_file_list) - set(find_files(self.processed_dir, suffix="pt", type="Name"))
         print("{} unprocessed proteins out of {}".format(len(rem_files), len(self.processed_file_list)))
         chain_id = 'A'
@@ -115,7 +103,7 @@ class PDBDataset(Dataset):
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
 
-            raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
+            raw_path = self.raw_dir + '{}.pdb.gz'.format(protein)
 
             labels = {
                 'molecular_function': [],
@@ -123,40 +111,14 @@ class PDBDataset(Dataset):
                 'cellular_component': []
             }
 
-            # if self.session == "selected" or self.session == 'test':
-            #     pass
-            # else:
-            #     ann = 0
-            #     go_terms = pickle_load(self.root + "/go_terms")
-            #     for ont in onts:
-            #         terms = go_terms['GO-terms-{}'.format(ont)]
-            #         tmp = self.annot[protein][ont]
-            #         if isinstance(tmp, float):
-            #             tmp = []
-            #         elif isinstance(tmp, str):
-            #             tmp = tmp.split(',')
-            #         for term in terms:
-            #             if term in tmp:
-            #                 labels[ont].append(1)
-            #             else:
-            #                 labels[ont].append(0)
-            #         ann += sum(labels[ont])
-
-            # assert ann / 2 == len(self.annot[protein].split(','))
-
-            # for label in labels:
-            #     labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
-
             emb = torch.load(self.root + "/esm/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
 
             if raw_path:
                 node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
-            # else:
-            #     node_coords, sequence_features, sequence_letters = generate_Identity_Matrix(embedding_features_per_residue.shape, self.fasta[protein])
-
-            # assert self.fasta[protein][3] == sequence_letters
+            # else: node_coords, sequence_features, sequence_letters = generate_Identity_Matrix(
+            # embedding_features_per_residue.shape, self.fasta[protein])
 
             assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
             assert embedding_features_per_residue.shape[1] == embedding_features_per_sequence.shape[1]
@@ -196,7 +158,7 @@ class PDBDataset(Dataset):
                 pre_transform = T.Compose(_transforms)
                 data = pre_transform(data)
 
-            torch.save(data, osp.join(Constants.ROOT + "processed/", f'{protein}.pt'))
+            torch.save(data, osp.join(self.root + "/processed/", f'{protein}.pt'))
 
     def len(self):
         return len(self.data)

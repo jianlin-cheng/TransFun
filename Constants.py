@@ -19,15 +19,13 @@ exp_evidence_codes = set([
     "EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC",
     "HTP", "HDA", "HMP", "HGI", "HEP"])
 
-
 ROOT = "/home/fbqc9/PycharmProjects/TransFunData/data/"
-# ROOT = "D:/Workspace/python-3/transfunData/data/"
-# ROOT = "/data/pycharm/TransFunData/data/"
+# ROOT = "D:/Workspace/python-3/transfunData/data_bp/"
+# ROOT = "/data_bp/pycharm/TransFunData/data_bp/"
 
 # CAFA4 Targets
 CAFA_TARGETS = {"287", "3702", "4577", "6239", "7227", "7955", "9606", "9823", "10090", "10116", "44689", "83333",
                 "99287", "226900", "243273", "284812", "559292"}
-
 
 NAMESPACES = {
     "cc": "cellular_component",
@@ -35,5 +33,33 @@ NAMESPACES = {
     "bp": "biological_process"
 }
 
+FUNC_DICT = {
+    'cc': 'GO:0005575',
+    'mf': 'GO:0003674',
+    'bp': 'GO:0008150'}
+
+BENCH_DICT = {
+    'cc': "CCO",
+    'mf': 'MFO',
+    'bp': 'BPO'
+}
+
+NAMES = {
+    "cc": "Cellular Component",
+    "mf": "Molecular Function",
+    "bp": "Biological Process"
+}
 
 TEST_GROUPS = ["LK_bpo", "LK_mfo", "LK_cco", "NK_bpo", "NK_mfo", "NK_cco"]
+
+Final_thresholds = {
+    "cellular_component": 0.50,
+    "molecular_function": 0.90,
+    "biological_process": 0.50
+}
+
+TFun_Plus_thresholds = {
+    "cellular_component": (0.13, 0.87),
+    "molecular_function": (0.36, 0.61),
+    "biological_process": (0.38, 0.62)
+}

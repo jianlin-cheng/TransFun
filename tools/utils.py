@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Common utilities for data pipeline tools."""
+"""Common utilities for data_bp pipeline tools."""
 import contextlib
 import shutil
 import tempfile

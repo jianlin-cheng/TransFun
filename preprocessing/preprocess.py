@@ -15,7 +15,7 @@ def test_esm():
     model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
     batch_converter = alphabet.get_batch_converter()
 
-    # Prepare data (first 2 sequences from ESMStructuralSplitDataset superfamily / 4)
+    # Prepare data_bp (first 2 sequences from ESMStructuralSplitDataset superfamily / 4)
     data = [
         ("protein1", "MKTVRQERLKSIVRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNIVATPRGYVLAGG"),
         ("protein2", "KALTARQQEVFDLIRDHISQTGMPPTRAEIAQRLGFRSPNAAEEHLKALARKGVIEIVSGASRGIRLLQEE"),
@@ -46,7 +46,7 @@ def test_esm():
 
     # # Look at the unsupervised self-attention map contact predictions
     # import matplotlib.pyplot as plt
-    # for (_, seq), attention_contacts in zip(data, results["contacts"]):
+    # for (_, seq), attention_contacts in zip(data_bp, results["contacts"]):
     #     plt.matshow(attention_contacts[: len(seq), : len(seq)])
     #     plt.title(seq)
     #     plt.show()
@@ -65,17 +65,17 @@ def generate_bulk_embedding(fasta_file, output_dir, path_to_extract_file):
 # print(count_proteins_biopython(Constants.ROOT + "eval/{}_1.fasta".format("test")))
 # exit()
 # generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("cropped"),
-#                         "/data/pycharm/TransFunData/data/bnm",
-#                         "/data/pycharm/TransFun/preprocessing")
+#                         "/data_bp/pycharm/TransFunData/data_bp/bnm",
+#                         "/data_bp/pycharm/TransFun/preprocessing")
 
 # generate_bulk_embedding(Constants.ROOT + "eval/{}.fasta".format("shorter"),
-#                         "/data/pycharm/TransFunData/data/shorter",
-#                         "/data/pycharm/TransFun/preprocessing")
+#                         "/data_bp/pycharm/TransFunData/data_bp/shorter",
+#                         "/data_bp/pycharm/TransFun/preprocessing")
 
 exit()
 
 
-# Generate data for each group
+# Generate data_bp for each group
 def generate_data():
     def get_stats(data):
         go_terms = {}
@@ -102,7 +102,7 @@ def generate_data():
         if not os.path.isdir(Constants.ROOT + i[0]):
             os.mkdir(Constants.ROOT + i[0])
 
-        df = pd.read_csv("/data/pycharm/TransFunData/data/final_annot.tsv", skiprows=12, delimiter="\t")
+        df = pd.read_csv("/data_bp/pycharm/TransFunData/data_bp/final_annot.tsv", skiprows=12, delimiter="\t")
         df = df[df[i[1]].notna()][[x_id, i[1]]]
 
         train_df = df[df[x_id].isin(train_set)]
@@ -127,13 +127,13 @@ def generate_data():
 # generate_data()
 
 
-# Generate labels for data
+# Generate labels for data_bp
 def generate_labels(_type='GO-terms (molecular_function)', _name='molecular_function'):
     # ['GO-terms (molecular_function)', 'GO-terms (biological_process)', 'GO-terms (cellular_component)']
 
-    # if not os.path.isfile('/data/pycharm/TransFunData/data/{}.pickle'.format(_name)):
+    # if not os.path.isfile('/data_bp/pycharm/TransFunData/data_bp/{}.pickle'.format(_name)):
 
-    file = '/data/pycharm/TransFunData/data/nrPDB-GO_2021.01.23_annot.tsv'
+    file = '/data_bp/pycharm/TransFunData/data_bp/nrPDB-GO_2021.01.23_annot.tsv'
     data = pd.read_csv(file, sep='\t', skiprows=12)
     data = data[["### PDB-chain", _type]]
     data = data[data[_type].notna()]
@@ -152,6 +152,6 @@ def generate_labels(_type='GO-terms (molecular_function)', _name='molecular_func
         x = x.sum(dim=0).float()
         assert len(tmp) == x.sum(dim=0).float()
         data_to_one_hot[row['### PDB-chain']] = x.to(dtype=torch.int)
-    pickle_save(data_to_one_hot, '/data/pycharm/TransFunData/data/{}'.format(_name))
+    pickle_save(data_to_one_hot, '/data_bp/pycharm/TransFunData/data_bp/{}'.format(_name))
 
 # generate_labels()

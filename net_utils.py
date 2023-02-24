@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn import GCNConv, BatchNorm, global_add_pool, global_mean_pool
+from torch_geometric.nn import GCNConv, BatchNorm, global_add_pool, global_mean_pool, global_max_pool
 
 
 class GCN(nn.Module):
@@ -40,7 +40,7 @@ class FC(nn.Module):
         _bias = False if bnorm else True
         self.fc = nn.Linear(in_features, out_features, bias=_bias)
         self.relu = nn.ReLU(inplace=True) if relu else None
-        # self.bn = BatchNorm(out_features, momentum=0.1) if bnorm else None
+        #self.bn = BatchNorm(out_features, momentum=0.1) if bnorm else None
         self.bn = nn.BatchNorm1d(out_features, momentum=0.1) if bnorm else None
 
     def forward(self, x):
@@ -66,8 +66,10 @@ class BNormRelu(nn.Module):
             x = self.relu(x)
         return x
 
-def get_pool(pool_type='mean'):
+def get_pool(pool_type='max'):
     if pool_type == 'mean':
         return global_mean_pool
     elif pool_type == 'add':
         return global_add_pool
+    elif pool_type == 'max':
+        return global_max_pool

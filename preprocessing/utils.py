@@ -13,6 +13,7 @@ from biopandas.pdb import PandasPdb
 from collections import deque, Counter
 import csv
 
+from sklearn.metrics import roc_curve, auc
 from torchviz import make_dot
 
 import Constants
@@ -50,7 +51,8 @@ def count_proteins_biopython(fasta_file):
 
 def get_proteins_from_fasta(fasta_file):
     proteins = list(SeqIO.parse(fasta_file, "fasta"))
-    proteins = [i.id.split("|")[1] for i in proteins]
+    # proteins = [i.id.split("|")[1] for i in proteins]
+    proteins = [i.id for i in proteins]
     return proteins
 
 
@@ -121,14 +123,14 @@ def search_database(file, database):
 # Just used to group msas to keep track of generation
 def partition_files(group):
     from glob import glob
-    dirs = glob("/data/fasta_files/{}/*/".format(group), recursive=False)
+    dirs = glob("/data_bp/fasta_files/{}/*/".format(group), recursive=False)
     for i in enumerate(dirs):
         prt = i[1].split('/')[4]
         if int(i[0]) % 100 == 0:
-            current = "/data/fasta_files/{}/{}".format(group, (int(i[0]) // 100))
+            current = "/data_bp/fasta_files/{}/{}".format(group, (int(i[0]) // 100))
             if not os.path.isdir(current):
                 os.mkdir(current)
-        old = "/data/fasta_files/{}/{}".format(group, prt)
+        old = "/data_bp/fasta_files/{}/{}".format(group, prt)
         new = current + "/{}".format(prt)
         if old != current:
             os.rename(old, new)
@@ -136,7 +138,7 @@ def partition_files(group):
 
 # Just used to group msas to keep track of generation
 def fasta_for_msas(proteins, fasta_file):
-    root_dir = '/data/uniprot/'
+    root_dir = '/data_bp/uniprot/'
     input_seq_iterator = SeqIO.parse(fasta_file, "fasta")
     num_protein = 0
     for record in input_seq_iterator:
@@ -242,7 +244,7 @@ def test_annotation():
     # Add annotations for test set
     data = {}
     for ts in Constants.TEST_GROUPS:
-        tmp = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        tmp = read_test_set("/data_bp/pycharm/TransFunData/data_bp/195-200/{}".format(ts))
         for i in tmp:
             if i[0] in data:
                 data[i[0]][ts].add(i[1])
@@ -251,7 +253,7 @@ def test_annotation():
                               'NK_cco': set()}
                 data[i[0]][ts].add(i[1])
 
-        tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        tmp = read_test_set("/data_bp/pycharm/TransFunData/data_bp/205-now/{}".format(ts))
         for i in tmp:
             if i[0] in data:
                 data[i[0]][ts].add(i[1])
@@ -267,11 +269,11 @@ def test_annotation():
 def get_test_classes():
     data = set()
     for ts in Constants.TEST_GROUPS:
-        tmp = read_test_set("/data/pycharm/TransFunData/data/195-200/{}".format(ts))
+        tmp = read_test_set("/data_bp/pycharm/TransFunData/data_bp/195-200/{}".format(ts))
         for i in tmp:
             data.add(i[1])
 
-        tmp = read_test_set("/data/pycharm/TransFunData/data/205-now/{}".format(ts))
+        tmp = read_test_set("/data_bp/pycharm/TransFunData/data_bp/205-now/{}".format(ts))
         for i in tmp:
             data.add(i[1])
 
@@ -300,16 +302,16 @@ def create_cluster(seq_identity=None):
         return members[max]
 
     if seq_identity is not None:
-        src = "/data/pycharm/TransFunData/data/uniprot/set1/mm2seq_{}/max_term".format(seq_identity)
+        src = "/data_bp/pycharm/TransFunData/data_bp/uniprot/set1/mm2seq_{}/max_term".format(seq_identity)
         if os.path.isfile(src):
             cluster = pd.read_pickle(src)
         else:
-            cluster = pd.read_csv("/data/pycharm/TransFunData/data/uniprot/set1/mm2seq_{}/final_clusters.tsv"
+            cluster = pd.read_csv("/data_bp/pycharm/TransFunData/data_bp/uniprot/set1/mm2seq_{}/final_clusters.tsv"
                                   .format(seq_identity), names=['cluster'], header=None)
 
             cluster['rep'] = cluster.apply(lambda row: get_position(row, 0, 'cluster', '\t'), axis=1)
             cluster['max'] = cluster.apply(lambda row: max_go_terms(row), axis=1)
-            cluster.to_pickle("/data/pycharm/TransFunData/data/uniprot/set1/mm2seq_{}/max_term".format(seq_identity))
+            cluster.to_pickle("/data_bp/pycharm/TransFunData/data_bp/uniprot/set1/mm2seq_{}/max_term".format(seq_identity))
 
         cluster = cluster['max'].to_list()
         computed = computed[computed['primary_accession'].isin(cluster)]
@@ -353,7 +355,7 @@ def save_ckp(state, is_best, checkpoint_path, best_model_path):
     best_model_path: path to save best model
     """
     f_path = checkpoint_path
-    # save checkpoint data to the path given, checkpoint_path
+    # save checkpoint data_bp to the path given, checkpoint_path
     torch.save(state, f_path)
     # if it is a best model, min validation loss
     if is_best:
@@ -386,3 +388,18 @@ def draw_architecture(model, data_batch):
     '''
     output = model(data_batch)
     make_dot(output, params=dict(model.named_parameters())).render("rnn_lstm_torchviz", format="png")
+
+
+def compute_roc(labels, preds):
+    # Compute ROC curve and ROC area for each class
+    fpr, tpr, _ = roc_curve(labels.flatten(), preds.flatten())
+    roc_auc = auc(fpr, tpr)
+    return roc_auc
+
+
+def generate_bulk_embedding(path_to_extract_file, fasta_file, output_dir):
+    subprocess.call('python {} esm1b_t33_650M_UR50S {} {} --repr_layers 0 32 33 '
+                    '--include mean per_tok --truncate'.format(path_to_extract_file,
+                                                               "{}".format(fasta_file),
+                                                               "{}".format(output_dir)),
+                    shell=True)

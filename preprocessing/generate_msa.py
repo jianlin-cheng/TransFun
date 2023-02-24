@@ -11,11 +11,11 @@ from glob import glob
 import sys
 
 jackhmmer_binary_path = shutil.which('jackhmmer')
-uniref90_database_path = "/data/pycharm/Genetic_Databases/uniref90/uniref90.fasta"
-mgnify_database_path = "/data/pycharm/Genetic_Databases/mgnify/mgy_clusters_2018_12.fa"
-small_bfd_database_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
-hhblits_binary_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
-uniclust30_database_path = "/data/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
+uniref90_database_path = "/data_bp/pycharm/Genetic_Databases/uniref90/uniref90.fasta"
+mgnify_database_path = "/data_bp/pycharm/Genetic_Databases/mgnify/mgy_clusters_2018_12.fa"
+small_bfd_database_path = "/data_bp/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
+hhblits_binary_path = "/data_bp/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
+uniclust30_database_path = "/data_bp/pycharm/Genetic_Databases/small_bfd/bfd-first_non_consensus_sequences.fasta"
 
 
 FeatureDict = MutableMapping[str, np.ndarray]
@@ -78,7 +78,7 @@ class DataPipeline:
   """Runs the alignment tools and assembles the input features."""
 
   def __init__(self, jackhmmer_binary_path: str, hhblits_binary_path: str, uniref90_database_path: str, mgnify_database_path: str, small_bfd_database_path: Optional[str],  uniclust30_database_path: str, bfd_database_path: Optional[str]):
-    """Initializes the data pipeline."""
+    """Initializes the data_bp pipeline."""
 
     self.jackhmmer_uniref90_runner = jackhmmer.Jackhmmer(binary_path=jackhmmer_binary_path, database_path=uniref90_database_path)
 
