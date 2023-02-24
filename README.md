@@ -18,24 +18,8 @@ conda activate transfun
 ```
 
 
-## Requirements:
-```
-biopandas==0.3.0dev0
-biopython==1.79
-numpy==1.21.3
-pandas==1.3.4
-scipy==1.7.1
-torch==1.10.0
-```
-Install [Transformer protein language models](https://github.com/facebookresearch/esm) by the following command:
-
-```
-pip install git+https://github.com/facebookresearch/esm.git
-```
-
-
 ## Prediction
-
+python predict.py --input-type pdb --output res --cut-off 0.5
 ```
 Predict protein functions with TransFun
 
