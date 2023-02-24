@@ -6,8 +6,6 @@ import torch
 warnings.filterwarnings("ignore", category=UserWarning)
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
-os.environ["WANDB_MODE"] = "online"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
@@ -19,8 +17,8 @@ parser.add_argument('--weight_decay', type=float, default=1e-16, help='Weight de
 parser.add_argument('--train_batch', type=int, default=32, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=32, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='cellular_component', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.5, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()

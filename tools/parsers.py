@@ -266,7 +266,7 @@ def _keep_line(line: str, seqnames: Set[str]) -> bool:
     return seqname in seqnames
   elif line.startswith('#'):  # Other markup - filter out
     return False
-  else:  # Alignment data - keep if sequence in list.
+  else:  # Alignment data_bp - keep if sequence in list.
     seqname = line.partition(' ')[0]
     return seqname in seqnames
 
