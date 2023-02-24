@@ -25,7 +25,7 @@ class PDBDataset(Dataset):
         Creates a dataset from a list of PDB files.
         :param file_list: path to LMDB file containing dataset
         :type file_list: list[Union[str, Path]]
-        :param transform: transformation function for data augmentation, defaults to None
+        :param transform: transformation function for data_bp augmentation, defaults to None
         :type transform: function, optional
         """
 
@@ -48,9 +48,6 @@ class PDBDataset(Dataset):
                 self.processed_file_list.append('{}.pt'.format(i))
         else:
             self.annot = pd.read_csv(self.root + 'annot.tsv', delimiter='\t')
-            # self.annot = self.annot.where(pd.notnull(self.annot), None)
-            # self.annot = pd.Series(self.annot[self.ont].values, index=self.annot['Protein']).to_dict()
-            # self.annot = self.annot.set_index('Protein').T.to_dict(orient='dict')
             self.annot = self.annot.set_index('Protein').to_dict('index')
 
             if self.session == "train":
@@ -60,15 +57,18 @@ class PDBDataset(Dataset):
                         self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
                         self.processed_file_list.append('{}.pt'.format(j))
             elif self.session == "valid":
-                self.data = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session+"ation")))
+                # self.data_bp = list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session+"ation")))
+                self.data = set(
+                    list(pickle_load(Constants.ROOT + "{}/{}".format(self.seq_id, self.session + "ation")))). \
+                    difference(
+                    ["O70481", "Q7KUT2", "P50077", "Q02785", "Q6UY14", "Q8BPQ7", "P18583", "Q8CJ78", "Q9NZM1" "Q5EXX3",
+                     "Q5EXX3", "Q9NZM1", "014924", "Q15334"])
+                self.data = list(self.data)
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
             elif self.session == "test":
-                self.all_test = pickle_load(Constants.ROOT + "eval/all_map")
                 self.data = self.get_test(self.test_file)
-
-                ## create test data-set
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -80,12 +80,10 @@ class PDBDataset(Dataset):
     @property
     def raw_dir(self) -> str:
         return self.root + "/alphafold/"
-        # return osp.join(self.root, 'raw')
 
     @property
     def processed_dir(self) -> str:
         return self.root + "/processed/"
-
 
     @property
     def raw_file_names(self):
@@ -98,7 +96,7 @@ class PDBDataset(Dataset):
     def download(self):
         rem_files = set(self.raw_file_list) - set(find_files(self.raw_dir, suffix="pdb.gz", type="Name"))
         for file in rem_files:
-            src = "/data/pycharm/TransFunData/data/alphafold/AF-{}-F1-model_v2.pdb.gz"
+            src = "/data_bp/pycharm/TransFunData/data_bp/alphafold/AF-{}-F1-model_v2.pdb.gz"
             des = self.root + "/raw/{}".format(file)
             if os.path.isfile(src.format(file)):
                 pass
@@ -108,7 +106,7 @@ class PDBDataset(Dataset):
                 # download
 
     def process(self):
-        onts = ['molecular_function', 'biological_process', 'cellular_component', 'all']
+        onts = ['molecular_function', 'biological_process', 'cellular_component']
         rem_files = set(self.processed_file_list) - set(find_files(self.processed_dir, suffix="pt", type="Name"))
         print("{} unprocessed proteins out of {}".format(len(rem_files), len(self.processed_file_list)))
         chain_id = 'A'
@@ -116,48 +114,38 @@ class PDBDataset(Dataset):
         for file in rem_files:
             protein = file.split(".")[0]
             print("Processing protein {}".format(protein))
-            if self.session == "test":
-                if self.all_test[protein][0]:
-                    raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(self.all_test[protein][0])
-                else:
-                    raw_path = None
-                    self.fasta = cafa_fasta_to_dictionary(Constants.ROOT + 'supplementary_data/cafa3/CAFA3_targets/Target '
-                                                           'files/all.fasta')
-            else:
-                raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
 
-            # print(raw_path)
+            raw_path = self.raw_dir + 'AF-{}-F1-model_v2.pdb.gz'.format(protein)
 
             labels = {
                 'molecular_function': [],
                 'biological_process': [],
-                'cellular_component': [],
-                'all': []
+                'cellular_component': []
             }
 
-            if self.session == "selected" or self.session == 'test':
-                pass
-            else:
-                ann = 0
-                go_terms = pickle_load(self.root + "/go_terms")
-                for ont in onts:
-                    terms = go_terms['GO-terms-{}'.format(ont)]
-                    tmp = self.annot[protein][ont]
-                    if isinstance(tmp, float):
-                        tmp = []
-                    elif isinstance(tmp, str):
-                        tmp = tmp.split(',')
-                    for term in terms:
-                        if term in tmp:
-                            labels[ont].append(1)
-                        else:
-                            labels[ont].append(0)
-                    ann += sum(labels[ont])
+            # if self.session == "selected" or self.session == 'test':
+            #     pass
+            # else:
+            #     ann = 0
+            #     go_terms = pickle_load(self.root + "/go_terms")
+            #     for ont in onts:
+            #         terms = go_terms['GO-terms-{}'.format(ont)]
+            #         tmp = self.annot[protein][ont]
+            #         if isinstance(tmp, float):
+            #             tmp = []
+            #         elif isinstance(tmp, str):
+            #             tmp = tmp.split(',')
+            #         for term in terms:
+            #             if term in tmp:
+            #                 labels[ont].append(1)
+            #             else:
+            #                 labels[ont].append(0)
+            #         ann += sum(labels[ont])
 
-                # assert ann / 2 == len(self.annot[protein].split(','))
+            # assert ann / 2 == len(self.annot[protein].split(','))
 
-                for label in labels:
-                    labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
+            # for label in labels:
+            #     labels[label] = torch.tensor(labels[label], dtype=torch.float32).view(1, -1)
 
             emb = torch.load(self.root + "/esm/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
@@ -165,13 +153,10 @@ class PDBDataset(Dataset):
 
             if raw_path:
                 node_coords, sequence_features, sequence_letters = process_pdbpandas(raw_path, chain_id)
-            else:
-                node_coords, sequence_features, sequence_letters = generate_Identity_Matrix(embedding_features_per_residue.shape, self.fasta[protein])
+            # else:
+            #     node_coords, sequence_features, sequence_letters = generate_Identity_Matrix(embedding_features_per_residue.shape, self.fasta[protein])
 
             # assert self.fasta[protein][3] == sequence_letters
-
-            print(embedding_features_per_residue.shape[0], node_coords.shape[0])
-            print(embedding_features_per_residue.shape[1], embedding_features_per_sequence.shape[1])
 
             assert embedding_features_per_residue.shape[0] == node_coords.shape[0]
             assert embedding_features_per_residue.shape[1] == embedding_features_per_sequence.shape[1]
@@ -185,7 +170,6 @@ class PDBDataset(Dataset):
             data['atoms'].molecular_function = torch.IntTensor(labels['molecular_function'])
             data['atoms'].biological_process = torch.IntTensor(labels['biological_process'])
             data['atoms'].cellular_component = torch.IntTensor(labels['cellular_component'])
-            data['atoms'].all = torch.IntTensor(labels['all'])
 
             data['atoms'].sequence_features = sequence_features
             data['atoms'].embedding_features_per_residue = embedding_features_per_residue
@@ -212,7 +196,7 @@ class PDBDataset(Dataset):
                 pre_transform = T.Compose(_transforms)
                 data = pre_transform(data)
 
-            torch.save(data, osp.join(Constants.ROOT + "POY/", f'{protein}.pt'))
+            torch.save(data, osp.join(Constants.ROOT + "processed/", f'{protein}.pt'))
 
     def len(self):
         return len(self.data)
@@ -221,24 +205,34 @@ class PDBDataset(Dataset):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-            #   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
+            #   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data_bp/processed_1/', f'{rep}.pt'))
         elif self.session == "valid" or self.session == "selected" or self.session == "test":
+
             rep = self.data[idx]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-            #  torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data/processed_1/', f'{rep}.pt'))
+            #  torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data_bp/processed_1/', f'{rep}.pt'))
         # elif :
-        #     rep = self.data[idx]
+        #     rep = self.data_bp[idx]
         #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
         # elif :
-        #     rep = self.data[idx]
-        #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
+        #     rep = self.data_bp[idx]
+        # return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
     def get_test(self, test_file):
         # all_test = set(self.all_test.keys())
         # all_test = set(self.all_test)
-        x = list(set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file))))
-        # x = pickle_load(self.root+"/eval/all_test_protein")
-        return x
+        # x = list(set(read_test_set("{}supplementary_data/cafa3/benchmark20171115/groundtruth/{}".format(self.root, test_file))))
+        # onlystructs_filter = pickle_load("/home/fbqc9/PycharmProjects/TransFun/evaluation/available_structures")
+        # onlystructs_filter = set([i[0].split(".")[0] for i in onlystructs_filter if i[1] == True])
+        # x = [i for i in x if i in onlystructs_filter]
+
+        data = pd.read_csv(Constants.ROOT + "timebased/test_data", sep="\t")
+        data = data.loc[data['ONTOLOGY'] == self.ont]
+        missing = set(pickle_load(Constants.ROOT + "timebased/missing_proteins"))
+        data = list(set(data['ACC'].to_list()).difference(missing))
+
+        # x = list(pickle_load(test_file)[self.ont])
+        return data
 
 
 def load_dataset(root=None, **kwargs):
@@ -250,8 +244,8 @@ def load_dataset(root=None, **kwargs):
     :param raw_path: path to raw path
     :type file_list: list[Union[str, Path]]
 
-    :return: Pytorch Dataset containing data
-    :rtype: torch.utils.data.Dataset
+    :return: Pytorch Dataset containing data_bp
+    :rtype: torch.utils.data_bp.Dataset
     """
 
     if root == None:
@@ -274,12 +268,12 @@ def load_dataset(root=None, **kwargs):
 def generate_dataset(_group="molecular_function"):
     # load sequences as dictionary
     if _group == "molecular_function":
-        x = pickle_load('/data/pycharm/TransFunData/data/molecular_function/{}'.format(_group))
+        x = pickle_load('/data_bp/pycharm/TransFunData/data_bp/molecular_function/{}'.format(_group))
         raw = list(set([i for i in x.keys()]))
     elif _group == "cellular_component":
         pass
     elif _group == "biological_process":
         pass
     if raw:
-        pickle_save(raw, '/data/pycharm/TransFunData/data/molecular_function/{}'
+        pickle_save(raw, '/data_bp/pycharm/TransFunData/data_bp/molecular_function/{}'
                     .format("molecular_function_raw_list"))
