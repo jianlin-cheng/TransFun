@@ -1,4 +1,4 @@
-# TransFun(In progress)
+# TransFun(Readme In progress)
 Transformer for protein function prediction
 
 
