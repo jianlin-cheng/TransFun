@@ -13,7 +13,7 @@ cd TransFun/
 wget url
 
 # create conda environment
-conda env create -f packagelist.yml
+conda env create -f environment.yml
 conda activate transfun
 ```
 
