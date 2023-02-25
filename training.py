@@ -95,16 +95,14 @@ def create_class_weights(cnter):
 
 
 #########################################################
-# Creating training data #
+# Creating training data_bp #
 #########################################################
 
 
-class_weights = create_class_weights(class_distribution_counter(**kwargs))
+# class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 
-
-exit()
 
 edge_types = list(params.edge_types - {args.ont})
 train_dataloader = DataLoader(dataset,
@@ -127,8 +125,8 @@ print('========================================')
 print(f'# training proteins: {len(dataset)}')
 print(f'# validation proteins: {len(val_dataset)}')
 print(f'# Number of classes: {num_class}')
-print(f'# Max class weights: {torch.max(class_weights)}')
-print(f'# Min class weights: {torch.min(class_weights)}')
+# print(f'# Max class weights: {torch.max(class_weights)}')
+# print(f'# Min class weights: {torch.min(class_weights)}')
 print('========================================')
 
 
@@ -170,7 +168,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
 
                 optimizer.zero_grad()
                 output = model(data.to(device))
-                loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
+                loss = criterion(output, getattr(data['atoms'], args.ont).to(device).float())
                 loss = (loss * class_weights).mean()
 
                 loss.backward()
@@ -184,7 +182,12 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                                               average="samples")
                 epoch_f1 += f1_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5, average="samples")
 
-                # print(epoch_accuracy, epoch_precision, epoch_recall, epoch_f1)
+                print(
+                    precision_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
+                                    average="samples"),
+                    recall_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5,
+                                 average="samples"),
+                    f1_score(getattr(data['atoms'], args.ont).cpu(), output.cpu() > 0.5, average="samples"))
 
             epoch_accuracy = epoch_accuracy / len(loaders['train'])
             epoch_precision = epoch_precision / len(loaders['train'])
@@ -201,7 +204,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
 
                 output = model(data.to(device))
 
-                _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device))
+                _val_loss = criterion(output, getattr(data['atoms'], args.ont).to(device).float())
                 _val_loss = (_val_loss * class_weights).mean()
                 val_loss += _val_loss.data.item()
 

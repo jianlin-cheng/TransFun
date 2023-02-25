@@ -173,8 +173,8 @@ manually_generated = set(['T96060003091', 'T96060005689', 'T100900002635', 'T960
 
 
 def get_test():
-    uniprot_mapping = "/data/pycharm/TransFunData/data/uniprot/idmapping.dat"
-    alphafold_mapping = "/data/pycharm/TransFunData/data/uniprot/accession_ids.csv"
+    uniprot_mapping = "/data_bp/pycharm/TransFunData/data_bp/uniprot/idmapping.dat"
+    alphafold_mapping = "/data_bp/pycharm/TransFunData/data_bp/uniprot/accession_ids.csv"
 
     cafaID_proteins = map_cafaID_proteinnames()
     test_proteins = get_test_proteins(use='list')

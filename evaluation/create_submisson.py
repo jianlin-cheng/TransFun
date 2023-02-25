@@ -1,10 +1,14 @@
+'''
+Script to generate CAFA3 FORMAT submission
+'''
+
 import math
 import os
 import pandas as pd
 from torch_geometric.graphgym import optim
 import torch
 import Constants
-import params1
+import params111
 from Dataset.Dataset import load_dataset
 from models.gnn import GCN3
 from parser import get_parser
@@ -51,7 +55,7 @@ if args.cuda:
     device = 'cuda'
 
 results = {}
-for i in TEST_FILE[0:1]:
+for i in TEST_FILE[2:]:
     args.ont = i[1]
 
     if args.ont == 'molecular_function':
@@ -70,12 +74,12 @@ for i in TEST_FILE[0:1]:
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
 
     # define checkpoint saved path
-    ckp_dir = Constants.ROOT + '{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
+    ckp_dir = Constants.ROOT + 'may/{}/{}/model_checkpoint/{}/'.format(args.seq, args.ont, ont_kwargs['edge_type'])
     ckp_pth = ckp_dir + "current_checkpoint.pt"
-
+    print(ckp_pth)
     # load the saved checkpoint
     if os.path.exists(ckp_pth):
-        # print("Loading model checkpoint @ {}".format(ckp_pth))
+        print("Loading model checkpoint @ {}".format(ckp_pth))
         model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
     else:
         continue
@@ -89,7 +93,7 @@ for i in TEST_FILE[0:1]:
     # print("valid_loss_min = ", min_val_loss)
     # print("valid_loss_min = {:.6f}".format(min_val_loss))
     # #  # for param in model.parameters():
-    # #  #   print(param.data)
+    # #  #   print(param.data_bp)
     # print("********************************-Parameters-***************************************")
 
     kwargs = {
@@ -116,7 +120,7 @@ for i in TEST_FILE[0:1]:
             proteins.extend(data['atoms'].protein)
             probabilities.extend(model(data.to(device)).tolist())
 
-    num_class = pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}']
+    num_class = pickle_load(Constants.ROOT + 'copied/go_terms')[f'GO-terms-{args.ont}']
     results[args.ont] = (proteins, probabilities, num_class)
 
 
