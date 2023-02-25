@@ -1,0 +1,35 @@
+name: transfun
+channels:
+  - pytorch
+  - pyg
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - diamond=0.9.14
+  - networkx=2.8.4
+  - numpy=1.23.3
+  - pandas=1.4.4
+  - pillow=9.2.0
+  - pip=22.3.*
+  - pyg=2.0.4
+  - python=3.8.*
+  - pytorch=1.10.2
+  - scikit-learn=1.1.2
+  - scipy=1.9.1
+  - setuptools=65.5.0
+  - torchaudio=0.10.2
+  - torchvision=0.11.3
+  - pip:
+      - biopandas==0.4.1
+      - biopython==1.80
+      - fair-esm==2.0.0
+      - h5py==3.7.0
+      - keras==2.10.0
+      - keras-preprocessing==1.1.2
+      - matplotlib==3.6.2
+      - obonet==0.3.0
+      - pip==22.3.1
+      - tensorflow==2.10.0
+      - torchviz==0.0.2
+      - wandb==0.13.4
