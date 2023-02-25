@@ -4,6 +4,7 @@ channels:
   - pyg
   - bioconda
   - conda-forge
+  - defaults
 dependencies:
   - diamond=0.9.14
   - networkx=2.8.4
