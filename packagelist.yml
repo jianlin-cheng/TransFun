@@ -4,7 +4,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - cudatoolkit=11.3.1
   - diamond=0.9.14
   - pyg=2.2.0
   - pip=22.3.*
