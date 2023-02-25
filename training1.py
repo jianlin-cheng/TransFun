@@ -151,7 +151,7 @@ criterion = torch.nn.BCELoss(reduction='none')
 
 labels = pickle_load(Constants.ROOT + "{}_labels".format(args.ont))
 
-
+exit()
 # test_labels = pickle_load(Constants.ROOT + "{}_timebased_labels".format(args.ont))
 
 
