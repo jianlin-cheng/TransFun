@@ -8,7 +8,7 @@ git clone https://github.com/jianlin-cheng/TransFun.git
 cd TransFun/
 
 # download trained models
-wget https://calla.rnet.missouri.edu/rnaminer/transfun/data
+curl https://calla.rnet.missouri.edu/rnaminer/transfun/data --output data.zip
 unzip data
 
 # create conda environment
