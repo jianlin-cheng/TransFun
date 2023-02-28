@@ -61,12 +61,12 @@ def write_to_file(data, output):
 
 
 if args.input_type == 'fasta':
-    if not args.fasta is None:
+    if not args.fasta_path is None:
         proteins = set(get_proteins_from_fasta("{}/{}".format(args.data_path, args.fasta)))
         pdbs = set([i.split(".")[0] for i in os.listdir("{}/{}".format(args.data_path, args.pdb))])
         proteins = pdbs.intersection(proteins)
 elif args.input_type == 'pdb':
-    if not args.pdb is None:
+    if not args.pdb_path is None:
         pdb_path = "{}/{}".format(args.data_path, args.pdb)
         if os.path.exists(pdb_path):
             proteins = os.listdir(pdb_path)
