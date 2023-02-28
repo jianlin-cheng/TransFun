@@ -46,6 +46,7 @@ FUNC_DICT = {
     'biological_process': 'GO:0008150'
 }
 
+print("Predicting proteins")
 
 def create_fasta(proteins):
     fasta = []
