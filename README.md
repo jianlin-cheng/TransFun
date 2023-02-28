@@ -1,4 +1,4 @@
-# TransFun(Readme In progress)
+# TransFun
 Transformer for protein function prediction
 
 ## Install dependencies
