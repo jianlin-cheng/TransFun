@@ -5,7 +5,6 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import Constants
 import params1
-import wandb
 
 from Dataset.Dataset import load_dataset
 from models.gnn import GCN3
@@ -19,10 +18,6 @@ from preprocessing.utils import pickle_save, pickle_load, save_ckp, load_ckp, cl
 import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
-
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
-os.environ["WANDB_MODE"] = "online"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
@@ -54,8 +49,6 @@ elif args.ont == 'cellular_component':
 elif args.ont == 'biological_process':
     ont_kwargs = params1.bio_kwargs
 
-wandb.init(project="Transfun_project_{}".format(args.ont), entity='frimpz',
-           name="{}_{}".format(args.seq, ont_kwargs['edge_type']))
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -294,23 +287,6 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                   # 'tst_f1: {:.4f}'.format(tst_f1),
                   'time: {:.4f}s'.format(time.time() - t))
 
-            wandb.log({"train_acc": epoch_accuracy,
-                       "train_loss": epoch_loss,
-                       "precision": epoch_precision,
-                       "recall": epoch_recall,
-                       "f1": epoch_f1,
-                       "val_acc": val_accuracy,
-                       "val_loss": val_loss,
-                       "val_precision": val_precision,
-                       "val_recall": val_recall,
-                       "val_f1": val_f1,
-                       # "tst_acc": tst_accuracy,
-                       # "tst_loss": tst_loss,
-                       # "tst_precision": tst_precision,
-                       # "tst_recall": tst_recall,
-                       # "tst_f1": tst_f1
-                       })
-
             checkpoint = {
                 'epoch': epoch,
                 'valid_loss_min': val_loss,
@@ -351,11 +327,6 @@ else:
 
 print("Training model on epoch {}, with minimum validation loss as {}".format(current_epoch, min_val_loss))
 
-wandb.config = {
-    "learning_rate": args.lr,
-    "epochs": current_epoch,
-    "batch_size": args.train_batch
-}
 
 trained_model = train(current_epoch, min_val_loss,
                       model=model, optimizer=optimizer,

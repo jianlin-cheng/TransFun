@@ -17,12 +17,12 @@ conda activate transfun
 
 
 ## Prediction
-1. To predict with PDBs only(note fasta sequence is extracted from PDB file.)
+1. To predict with PDBs only(note fasta sequence is extracted from PDB file).
 ```
     python predict.py --input-type pdb --output res --cut-off 0.5
 ```
 
-2. To predict with fasta and PDBs run: 
+2. To predict with fasta and PDBs: 
 ```
     python predict.py --input-type pdb --output res --cut-off 0.5
 ```
