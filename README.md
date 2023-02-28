@@ -2,13 +2,14 @@
 Transformer for protein function prediction
 
 ## Install dependencies
-```bash
+```
 # clone project
 git clone https://github.com/jianlin-cheng/TransFun.git
 cd TransFun/
 
 # download trained models
 wget https://calla.rnet.missouri.edu/rnaminer/transfun/data
+unzip data
 
 # create conda environment
 conda env create -f environment.yml
@@ -19,12 +20,12 @@ conda activate transfun
 ## Prediction
 1. To predict with PDBs only(note fasta sequence is extracted from PDB file).
 ```
-    python predict.py --input-type pdb --output res --cut-off 0.5
+    python predict.py --input-type pdb --pdb-path data/alphafold --output res --cut-off 0.5
 ```
 
 2. To predict with fasta and PDBs: 
 ```
-    python predict.py --input-type pdb --output res --cut-off 0.5
+    python predict.py --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output res --cut-off 0.5
 ```
 
 3. Full prediction command: 
@@ -41,13 +42,13 @@ optional arguments:
                         Batch size.
   --input-type {fasta,pdb}
                         Input Data: fasta file or PDB files
-  --fasta FASTA         Path to Fasta
-  --pdb PDB             Path to directory of PDBs
+  --fasta-path FASTA_PATH
+                        Path to Fasta
+  --pdb-path PDB_PATH   Path to directory of PDBs
   --cut-off CUT_OFF     Cut of to report function
   --output OUTPUT       File to save output
   --add-ancestors ADD_ANCESTORS
                         Add ancestor terms to prediction
-
 ```
 
 
