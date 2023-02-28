@@ -16,20 +16,20 @@ from preprocessing.utils import load_ckp, get_sequence_from_pdb, create_seqrecor
 
 parser = argparse.ArgumentParser(description=" Predict protein functions with TransFun ", epilog=" Thank you !!!")
 parser.add_argument('--data-path', type=str, default="data", help="Path to data files")
-parser.add_argument('--ontology', type=str, default="cellular_component", help="Path to data files")
+parser.add_argument('--ontology', type=str, default="cellular_component", help="Ontology to predict")
 parser.add_argument('--no-cuda', default=False, help='Disables CUDA training.')
-parser.add_argument('--batch-size', default=10, help='Batch size.')
 parser.add_argument('--input-type', choices=['fasta', 'pdb'], default="fasta",
                     help='Input Data: fasta file or PDB files')
+parser.add_argument('--batch-size', default=10, help='Batch size.')
 parser.add_argument('--fasta-path', default="sequence.fasta", help='Path to Fasta')
 parser.add_argument('--pdb-path', default="alphafold", help='Path to directory of PDBs')
 parser.add_argument('--cut-off', type=float, default=0.0, help="Cut of to report function")
-parser.add_argument('--output', type=str, default="output", help="File to save output")
+parser.add_argument('--output', type=str, default="output.txt", help="File to save output")
 parser.add_argument('--add-ancestors', default=False, help="Add ancestor terms to prediction")
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-
+device = 'cpu'
 if args.cuda:
     device = 'cuda'
 
@@ -51,13 +51,13 @@ print("Predicting proteins")
 def create_fasta(proteins):
     fasta = []
     for protein in proteins:
-        alpha_fold_seq = get_sequence_from_pdb(args.data_path + "/alphafold/{}.pdb.gz".format(protein), "A")
+        alpha_fold_seq = get_sequence_from_pdb(args.data_path + "/{}/{}.pdb.gz".format(args.pdb_path, protein), "A")
         fasta.append(create_seqrecord(id=protein, seq=alpha_fold_seq))
     SeqIO.write(fasta, "{}/sequence.fasta".format(args.data_path), "fasta")
 
 
 def write_to_file(data, output):
-    with open('{}.txt'.format(output), 'w') as fp:
+    with open('{}'.format(output), 'w') as fp:
         fp.write('\n'.join('%s %s %s' % x for x in data))
 
 
@@ -85,14 +85,15 @@ os.makedirs("{}/esm".format(args.data_path), exist_ok=True)
 if len([]) > 1022:
     pass
 else:
-    generate_bulk_embedding("./preprocessing/extract.py", "{}/{}".format(args.data_path, args.fasta),
+    generate_bulk_embedding("./preprocessing/extract.py", "{}/{}".format(args.data_path, args.fasta_path),
                             "{}/esm".format(args.data_path))
 
 kwargs = {
     'seq_id': Constants.Final_thresholds[args.ontology],
     'ont': args.ontology,
     'session': 'selected',
-    'prot_ids': proteins
+    'prot_ids': proteins,
+    'pdb_dir': args.pdb_path
 }
 
 dataset = load_dataset(root=args.data_path, **kwargs)
@@ -103,19 +104,20 @@ test_dataloader = DataLoader(dataset,
                              shuffle=False)
 
 # model
+ont_kwargs['device'] = device
 model = GCN3(**ont_kwargs)
 model.to(device)
 
 optimizer = optim.Adam(model.parameters())
 
-ckp_pth = "{}/{}".format(args.data_path, args.ontology)
+model_pth = "{}/{}.pt".format(args.data_path, args.ontology)
 
 # load the saved checkpoint
-if os.path.exists(ckp_pth):
-    print("Loading model checkpoint @ {}".format(ckp_pth))
-    model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
+if os.path.exists(model_pth):
+    print("Loading model checkpoint @ {}".format(model_pth))
+    model, optimizer, current_epoch, min_val_loss = load_ckp(model_pth, model, optimizer, device=device)
 else:
-    print("Model not found. Skipping...")
+    print("Model {} not found. Exiting...".format(model_pth))
     exit()
 
 model.eval()
@@ -130,7 +132,7 @@ for data in test_dataloader:
 
 assert len(proteins) == len(scores)
 
-goterms = pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ontology}']
+goterms = pickle_load(args.data_path + '/go_terms')[f'GO-terms-{args.ontology}']
 go_graph = obonet.read_obo(open("{}/go-basic.obo".format(args.data_path), 'r'))
 go_set = nx.ancestors(go_graph, FUNC_DICT[args.ontology])
 

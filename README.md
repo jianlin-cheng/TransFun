@@ -20,12 +20,12 @@ conda activate transfun
 ## Prediction
 1. To predict with PDBs only(note fasta sequence is extracted from PDB file).
 ```
-    python predict.py --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
+    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
 ```
 
 2. To predict with fasta and PDBs: 
 ```
-    python predict.py --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
+    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
 ```
 
 3. Full prediction command: 
