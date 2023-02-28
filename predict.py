@@ -14,7 +14,7 @@ from models.gnn import GCN3
 from preprocessing.utils import load_ckp, get_sequence_from_pdb, create_seqrecord, get_proteins_from_fasta, \
     generate_bulk_embedding, pickle_load
 
-parser = argparse.ArgumentParser(description=" Predict protein functions with TransFun ", epilog=" THank you !!!")
+parser = argparse.ArgumentParser(description=" Predict protein functions with TransFun ", epilog=" Thank you !!!")
 parser.add_argument('--data-path', type=str, default="data", help="Path to data files")
 parser.add_argument('--ontology', type=str, default="cellular_component", help="Path to data files")
 parser.add_argument('--no-cuda', default=False, help='Disables CUDA training.')

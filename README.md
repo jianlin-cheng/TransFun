@@ -1,16 +1,14 @@
 # TransFun(Readme In progress)
 Transformer for protein function prediction
 
-
-Install dependencies
-
+## Install dependencies
 ```bash
 # clone project
 git clone https://github.com/jianlin-cheng/TransFun.git
 cd TransFun/
 
 # download trained models
-wget url
+wget https://calla.rnet.missouri.edu/rnaminer/transfun/data
 
 # create conda environment
 conda env create -f environment.yml
@@ -19,7 +17,17 @@ conda activate transfun
 
 
 ## Prediction
-python predict.py --input-type pdb --output res --cut-off 0.5
+1. To predict with PDBs only(note fasta sequence is extracted from PDB file.)
+```
+    python predict.py --input-type pdb --output res --cut-off 0.5
+```
+
+2. To predict with fasta and PDBs run: 
+```
+    python predict.py --input-type pdb --output res --cut-off 0.5
+```
+
+3. Full prediction command: 
 ```
 Predict protein functions with TransFun
 
@@ -44,4 +52,13 @@ optional arguments:
 
 
 ## Reference
-
+```
+@Article{Boadu2023-et,
+     title    = "Combining protein sequences and structures with transformers and
+                 equivariant graph neural networks to predict protein function",
+     author   = "Boadu, Frimpong and Cao, Hongyuan and Cheng, Jianlin",
+     journal  = "bioRxiv",
+     month    =  jan,
+     year     =  2023
+}
+```
