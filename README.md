@@ -20,12 +20,12 @@ conda activate transfun
 
 
 ## Prediction
-1. To predict with PDBs only(note fasta sequence is extracted from PDB file).
+1. To predict protein function with a protein structure in the PDB format (note: a protein sequence is extracted from the PDB file).
 ```
     python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
 ```
 
-2. To predict with fasta and PDBs: 
+2. To predict protein function with a protein sequence in the fasta format and a protein structure in the PDB format: 
 ```
     python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
 ```
