@@ -1,5 +1,5 @@
 # TransFun for Protein Function Prediction
-TransFun is a method using a transformer-based protein language model and 3D-equivariant graph neural networks to distill information from both protein sequences and structures to predict protein function. It extracts feature embeddings from protein sequences using a pre-trained protein language model (ESM) via transfer learning and combines them with 3D structures of proteins predicted by AlphaFold2 through equivariant graph neural networks (EGNN). It achieved the state-of-the-art performance on the CAFA3 test dataset and a new test dataset.
+TransFun is a method using a transformer-based protein language model and 3D-equivariant graph neural networks to distill information from both protein sequences and structures to predict protein function in terms of Gene Ontology (GO) terms. It extracts feature embeddings from protein sequences using a pre-trained protein language model (ESM) via transfer learning and combines them with 3D structures of proteins predicted by AlphaFold2 through equivariant graph neural networks (EGNN). It achieved the state-of-the-art performance on the CAFA3 test dataset and a new test dataset.
 
 
 
