@@ -20,7 +20,7 @@ conda activate transfun
 
 
 ## Prediction
-1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are extracted from the PDB files).
+1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files).
 ```
     python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
 ```
