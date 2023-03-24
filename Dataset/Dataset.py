@@ -68,7 +68,6 @@ class PDBDataset(Dataset):
 
     @property
     def raw_dir(self) -> str:
-        # return self.root + "/struct2go/pdb/"
         return self.root + "/alphafold/"
 
     @property
@@ -112,8 +111,7 @@ class PDBDataset(Dataset):
                 'cellular_component': []
             }
 
-            # emb = torch.load(self.root + "/esm/{}.pt".format(protein))
-            emb = torch.load(self.root + "/gatgo/esm/{}.pt".format(protein))
+            emb = torch.load(self.root + "/esm/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
 
