@@ -61,7 +61,7 @@ def create_fasta(proteins):
 
 
 def write_to_file(data, output):
-    with open('{}.txt'.format(output), 'w') as fp:
+    with open('{}'.format(output), 'w') as fp:
         fp.write('\n'.join('%s %s %s' % x for x in data))
 
 

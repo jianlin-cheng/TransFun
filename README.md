@@ -53,6 +53,10 @@ optional arguments:
                         Add ancestor terms to prediction
 ```
 
+4. Example Prediction: 
+```
+    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path test/pdbs/ --output result.txt
+```
 
 ## Reference
 ```
