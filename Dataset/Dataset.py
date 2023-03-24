@@ -54,7 +54,7 @@ class PDBDataset(Dataset):
                         self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(j))
                         self.processed_file_list.append('{}.pt'.format(j))
             elif self.session == "validation":
-                self.data = list(pickle_load(self.root + "/{}/{}".format(self.seq_id, self.session)))
+                self.data = list(pickle_load(self.root + "{}/{}".format(self.seq_id, self.session)))
                 for i in self.data:
                     self.raw_file_list.append('AF-{}-F1-model_v2.pdb.gz'.format(i))
                     self.processed_file_list.append('{}.pt'.format(i))
@@ -68,6 +68,7 @@ class PDBDataset(Dataset):
 
     @property
     def raw_dir(self) -> str:
+        # return self.root + "/struct2go/pdb/"
         return self.root + "/alphafold/"
 
     @property
@@ -111,7 +112,8 @@ class PDBDataset(Dataset):
                 'cellular_component': []
             }
 
-            emb = torch.load(self.root + "/esm/{}.pt".format(protein))
+            # emb = torch.load(self.root + "/esm/{}.pt".format(protein))
+            emb = torch.load(self.root + "/gatgo/esm/{}.pt".format(protein))
             embedding_features_per_residue = emb['representations'][33]
             embedding_features_per_sequence = emb['mean_representations'][33].view(1, -1)
 
@@ -167,18 +169,9 @@ class PDBDataset(Dataset):
         if self.session == "train":
             rep = random.sample(self.data[idx], 1)[0]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-            #   torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data_bp/processed_1/', f'{rep}.pt'))
-        elif self.session == "valid" or self.session == "selected" or self.session == "test":
-
+        elif self.session == "validation" or self.session == "selected" or self.session == "test":
             rep = self.data[idx]
             return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-            #  torch.load(osp.join('/home/fbqc9/PycharmProjects/TransFunData/data_bp/processed_1/', f'{rep}.pt'))
-        # elif :
-        #     rep = self.data_bp[idx]
-        #     return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
-        # elif :
-        #     rep = self.data_bp[idx]
-        # return torch.load(osp.join(self.processed_dir, f'{rep}.pt'))
 
     def get_test(self, test_file):
         # all_test = set(self.all_test.keys())

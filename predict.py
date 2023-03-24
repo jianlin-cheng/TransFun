@@ -8,9 +8,9 @@ from Bio import SeqIO
 from torch import optim
 from torch_geometric.loader import DataLoader
 import Constants
-import params1
+import params
 from Dataset.Dataset import load_dataset
-from models.gnn import GCN3
+from models.gnn import GCN
 from preprocessing.utils import load_ckp, get_sequence_from_pdb, create_seqrecord, get_proteins_from_fasta, \
     generate_bulk_embedding, pickle_load
 
@@ -34,11 +34,11 @@ if args.cuda:
     device = 'cuda'
 
 if args.ontology == 'molecular_function':
-    ont_kwargs = params1.mol_kwargs
+    ont_kwargs = params.mol_kwargs
 elif args.ontology == 'cellular_component':
-    ont_kwargs = params1.cc_kwargs
+    ont_kwargs = params.cc_kwargs
 elif args.ontology == 'biological_process':
-    ont_kwargs = params1.bio_kwargs
+    ont_kwargs = params.bio_kwargs
 
 FUNC_DICT = {
     'cellular_component': 'GO:0005575',
@@ -103,7 +103,7 @@ test_dataloader = DataLoader(dataset,
                              shuffle=False)
 
 # model
-model = GCN3(**ont_kwargs)
+model = GCN(**ont_kwargs)
 model.to(device)
 
 optimizer = optim.Adam(model.parameters())
@@ -112,7 +112,6 @@ ckp_pth = "{}/{}".format(args.data_path, args.ontology)
 
 # load the saved checkpoint
 if os.path.exists(ckp_pth):
-    print("Loading model checkpoint @ {}".format(ckp_pth))
     model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
 else:
     print("Model not found. Skipping...")

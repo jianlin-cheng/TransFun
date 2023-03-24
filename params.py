@@ -7,7 +7,7 @@ bio_kwargs = {
     'egnn_layers': 12,
     'layers': 1,
     'device': 'cuda',
-    'wd': 0.0001
+    'wd': 5e-4
 }
 
 mol_kwargs = {
@@ -31,7 +31,7 @@ cc_kwargs = {
     'egnn_layers': 12,
     'layers': 1,
     'device': 'cuda',
-    'wd': 0.001
+    'wd': 0.001 #5e-4
 }
 
 edge_types = set(['sqrt', 'cbrt', 'dist_3', 'dist_4', 'dist_6', 'dist_10', 'dist_12',
