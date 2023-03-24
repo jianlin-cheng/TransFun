@@ -364,14 +364,14 @@ def save_ckp(state, is_best, checkpoint_path, best_model_path):
         shutil.copyfile(f_path, best_fpath)
 
 
-def load_ckp(checkpoint_fpath, model, optimizer):
+def load_ckp(checkpoint_fpath, model, optimizer, device):
     """
     checkpoint_path: path to save checkpoint
     model: model that we want to load checkpoint parameters into
     optimizer: optimizer we defined in previous training
     """
     # load check point
-    checkpoint = torch.load(checkpoint_fpath)
+    checkpoint = torch.load(checkpoint_fpath, map_location=torch.device(device))
     # initialize state_dict from checkpoint to model
     model.load_state_dict(checkpoint['state_dict'])
     # initialize optimizer from checkpoint to optimizer

@@ -1,7 +1,9 @@
-# TransFun(Readme In progress)
-Transformer for protein function prediction
+# TransFun for Protein Function Prediction
+TransFun is a method using a transformer-based protein language model and 3D-equivariant graph neural networks (EGNN) to distill information from both protein sequences and structures to predict protein function in terms of Gene Ontology (GO) terms. It extracts feature embeddings from protein sequences using a pre-trained protein language model (ESM) via transfer learning and combines them with 3D structures of proteins predicted by AlphaFold2 through EGNN to predict function. It achieved the state-of-the-art performance on the CAFA3 test dataset and a new test dataset.
 
-## Install dependencies
+
+
+## Installation
 ```
 # clone project
 git clone https://github.com/jianlin-cheng/TransFun.git
@@ -18,14 +20,14 @@ conda activate transfun
 
 
 ## Prediction
-1. To predict with PDBs only(note fasta sequence is extracted from PDB file).
+1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files).
 ```
-    python predict.py --input-type pdb --pdb-path data/alphafold --output res --cut-off 0.5
+    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
 ```
 
-2. To predict with fasta and PDBs: 
+2. To predict protein function with protein sequences in the fasta format and protein structures in the PDB format as input: 
 ```
-    python predict.py --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output res --cut-off 0.5
+    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
 ```
 
 3. Full prediction command: 
