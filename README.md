@@ -49,8 +49,7 @@ optional arguments:
   --pdb-path PDB_PATH   Path to directory of PDBs
   --cut-off CUT_OFF     Cut of to report function
   --output OUTPUT       File to save output
-  --add-ancestors ADD_ANCESTORS
-                        Add ancestor terms to prediction
+  
 ```
 
 4. Example Prediction: 

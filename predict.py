@@ -25,7 +25,7 @@ parser.add_argument('--fasta-path', default="sequence.fasta", help='Path to Fast
 parser.add_argument('--pdb-path', default="alphafold", help='Path to directory of PDBs')
 parser.add_argument('--cut-off', type=float, default=0.0, help="Cut of to report function")
 parser.add_argument('--output', type=str, default="output", help="File to save output")
-parser.add_argument('--add-ancestors', default=False, help="Add ancestor terms to prediction")
+# parser.add_argument('--add-ancestors', default=False, help="Add ancestor terms to prediction")
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -211,13 +211,12 @@ for protein, score in zip(proteins, scores):
             protein_terms.append((go_term, _score))
             tmp.add(go_term)
 
-    if args.add_ancestors:
-        for i, j in protein_terms:
-            ansc = nx.ancestors(go_graph, i).intersection(go_set)
-            # remove those predicted already
-            ansc = ansc.difference(tmp)
-            for _term in ansc:
-                results.append((protein, _term, j))
-                tmp.add(_term)
+    for i, j in protein_terms:
+        ansc = nx.ancestors(go_graph, i).intersection(go_set)
+        # remove those predicted already
+        ansc = ansc.difference(tmp)
+        for _term in ansc:
+            results.append((protein, _term, j))
+            tmp.add(_term)
 
 write_to_file(results, "{}/{}".format(args.data_path, args.output))
