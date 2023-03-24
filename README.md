@@ -9,7 +9,7 @@ TransFun is a method using a transformer-based protein language model and 3D-equ
 git clone https://github.com/jianlin-cheng/TransFun.git
 cd TransFun/
 
-# download trained models
+# download trained models and test sample
 curl https://calla.rnet.missouri.edu/rnaminer/transfun/data --output data.zip
 unzip data
 
@@ -27,7 +27,7 @@ conda activate transfun
 
 2. To predict protein function with protein sequences in the fasta format and protein structures in the PDB format as input: 
 ```
-    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
+    python predict.py --data-path data --ontology cellular_component --input-type fasta --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
 ```
 
 3. Full prediction command: 
@@ -54,6 +54,11 @@ optional arguments:
 ```
 
 4. Example Prediction: 
+```
+    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path test/pdbs/ --output result.txt
+```
+
+5. Example Prediction: 
 ```
     python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path test/pdbs/ --output result.txt
 ```
