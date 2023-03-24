@@ -37,6 +37,7 @@ class PDBDataset(Dataset):
         self.session = kwargs.get('session', None)
         self.prot_ids = kwargs.get('prot_ids', [])
         self.test_file = kwargs.get('test_file', None)
+        self.pdb_pth = kwargs.get('pdb_path', self.root + "/alphafold/")
 
         self.raw_file_list = []
         self.processed_file_list = []
@@ -68,7 +69,7 @@ class PDBDataset(Dataset):
 
     @property
     def raw_dir(self) -> str:
-        return self.root + "/alphafold/"
+        return self.pdb_pth
 
     @property
     def processed_dir(self) -> str:
