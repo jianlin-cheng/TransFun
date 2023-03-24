@@ -74,7 +74,7 @@ elif args.input_type == 'pdb':
             proteins = [protein.split('.')[0] for protein in proteins if protein.endswith(".pdb.gz")]
             create_fasta(proteins)
         else:
-            print("PDB directory not found")
+            print("PDB directory not found -- {}".format(pdb_path))
             exit()
 
 if len(proteins) > 0:
@@ -85,6 +85,7 @@ os.makedirs("{}/esm".format(args.data_path), exist_ok=True)
 if len([]) > 1022:
     pass
 else:
+    print(args.fasta)
     generate_bulk_embedding("./preprocessing/extract.py", "{}/{}".format(args.data_path, args.fasta),
                             "{}/esm".format(args.data_path))
 
