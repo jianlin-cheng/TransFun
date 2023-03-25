@@ -38,10 +38,10 @@ optional arguments:
   -h, --help            show this help message and exit
   --data-path DATA_PATH
                         Path to data files
-  --ontology ONTOLOGY   Path to data files
-  --no-cuda NO_CUDA     Disables CUDA training.
+  --ontology ONTOLOGY   GO function category
+  --no-cuda NO_CUDA     Disables CUDA training
   --batch-size BATCH_SIZE
-                        Batch size.
+                        Batch size
   --input-type {fasta,pdb}
                         Input Data: fasta file or PDB files
   --fasta-path FASTA_PATH
