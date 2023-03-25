@@ -219,4 +219,5 @@ for protein, score in zip(proteins, scores):
             results.append((protein, _term, j))
             tmp.add(_term)
 
+print("Writing output to {}".format(args.output))
 write_to_file(results, "{}/{}".format(args.data_path, args.output))
