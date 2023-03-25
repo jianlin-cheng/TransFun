@@ -22,12 +22,12 @@ conda activate transfun
 ## Prediction
 1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files).
 ```
-    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
+    python predict.py --data-path data --ontology GO_function_category --input-type pdb --pdb-path data/alphafold --output result.txt --cut-off 0.5
 ```
 
 2. To predict protein function with protein sequences in the fasta format and protein structures in the PDB format as input: 
 ```
-    python predict.py --data-path data --ontology cellular_component --input-type fasta --pdb-path data/alphafold --fasta-path data/sequence.fasta--output result.txt --cut-off 0.5
+    python predict.py --data-path data --ontology GO_function_category --input-type fasta --pdb-path data/alphafold --fasta-path data/sequence.fasta --output result.txt --cut-off 0.5
 ```
 
 3. Full prediction command: 
