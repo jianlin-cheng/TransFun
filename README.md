@@ -35,19 +35,19 @@ conda activate transfun
 Predict protein functions with TransFun
 
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --help            Help message
   --data-path DATA_PATH
                         Path to data files
-  --ontology ONTOLOGY   GO function category
+  --ontology ONTOLOGY   GO function category: cellular_component, molecular_function, biological_process
   --no-cuda NO_CUDA     Disables CUDA training
   --batch-size BATCH_SIZE
                         Batch size
   --input-type {fasta,pdb}
-                        Input Data: fasta file or PDB files
+                        Input data type: fasta file or PDB files
   --fasta-path FASTA_PATH
                         Path to Fasta
   --pdb-path PDB_PATH   Path to directory of PDBs
-  --cut-off CUT_OFF     Cut of to report function
+  --cut-off CUT_OFF     Cut off threshold to report function
   --output OUTPUT       File to save output
   
 ```
@@ -59,7 +59,7 @@ optional arguments:
 
 5. Example Prediction: 
 ```
-    python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path test/pdbs/ --output result.txt
+    python predict.py --data-path data --ontology molecular_function --input-type pdb --pdb-path test/pdbs/ --output result.txt
 ```
 
 ## Reference
