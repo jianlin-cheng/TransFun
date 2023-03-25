@@ -52,12 +52,12 @@ optional arguments:
   
 ```
 
-4. Example Prediction: 
+4. An example of predicting cellular component of some proteins: 
 ```
     python predict.py --data-path data --ontology cellular_component --input-type pdb --pdb-path test/pdbs/ --output result.txt
 ```
 
-5. Example Prediction: 
+5. An example of predicting molecular function of some proteins: 
 ```
     python predict.py --data-path data --ontology molecular_function --input-type pdb --pdb-path test/pdbs/ --output result.txt
 ```
