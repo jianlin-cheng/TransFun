@@ -20,14 +20,14 @@ conda activate transfun
 
 
 ## Prediction
-1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files).
+1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files in the input pdb path).
 ```
-    python predict.py --data-path data --ontology GO_function_category --input-type pdb --pdb-path data/alphafold --output output_file --cut-off probability_threshold
+    python predict.py --data-path path_to_store_intermediate_files --ontology GO_function_category --input-type pdb --pdb-path data/alphafold --output output_file --cut-off probability_threshold
 ```
 
 2. To predict protein function with protein sequences in the fasta format and protein structures in the PDB format as input: 
 ```
-    python predict.py --data-path data --ontology GO_function_category --input-type fasta --pdb-path data/alphafold --fasta-path data/sequence.fasta --output result.txt --cut-off probability_threshold
+    python predict.py --data-path path_to_store_intermediate_files --ontology GO_function_category --input-type fasta --pdb-path data/alphafold --fasta-path path_to_a_fasta_file --output result.txt --cut-off probability_threshold
 ```
 
 3. Full prediction command: 
@@ -37,7 +37,7 @@ Predict protein functions with TransFun
 optional arguments:
   -h, --help            Help message
   --data-path DATA_PATH
-                        Path to data files
+                        Path to store intermediate data files
   --ontology ONTOLOGY   GO function category: cellular_component, molecular_function, biological_process
   --no-cuda NO_CUDA     Disables CUDA training
   --batch-size BATCH_SIZE
@@ -45,10 +45,10 @@ optional arguments:
   --input-type {fasta,pdb}
                         Input data type: fasta file or PDB files
   --fasta-path FASTA_PATH
-                        Path to Fasta
-  --pdb-path PDB_PATH   Path to directory of PDBs
-  --cut-off CUT_OFF     Cut off threshold to report function
-  --output OUTPUT       File to save output
+                        Path to a fasta containing one or more protein sequences
+  --pdb-path PDB_PATH   Path to the directory of one or more protein structure files in the PDB format
+  --cut-off CUT_OFF     Cut-off probability threshold to report function
+  --output OUTPUT       A file to save output. All the predictions are stored in this file
   
 ```
 
