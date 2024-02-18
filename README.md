@@ -64,12 +64,19 @@ optional arguments:
 
 ## Reference
 ```
-@Article{Boadu2023-et,
-     title    = "Combining protein sequences and structures with transformers and
-                 equivariant graph neural networks to predict protein function",
-     author   = "Boadu, Frimpong and Cao, Hongyuan and Cheng, Jianlin",
-     journal  = "bioRxiv",
-     month    =  jan,
-     year     =  2023
+@article{10.1093/bioinformatics/btad208,
+    author = {Boadu, Frimpong and Cao, Hongyuan and Cheng, Jianlin},
+    title = "{Combining protein sequences and structures with transformers and equivariant graph neural networks to predict protein function}",
+    journal = {Bioinformatics},
+    volume = {39},
+    number = {Supplement_1},
+    pages = {i318-i325},
+    year = {2023},
+    month = {06},
+    issn = {1367-4811},
+    doi = {10.1093/bioinformatics/btad208},
+    url = {https://doi.org/10.1093/bioinformatics/btad208},
+    eprint = {https://academic.oup.com/bioinformatics/article-pdf/39/Supplement\_1/i318/50741489/btad208.pdf},
 }
+
 ```
