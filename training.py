@@ -10,7 +10,7 @@ import Constants
 import params
 
 from Dataset.Dataset import load_dataset
-from models.gnn import GCN, MLP, GCN0, GCN4
+from models.gnn import GCN
 import argparse
 import torch
 import time
