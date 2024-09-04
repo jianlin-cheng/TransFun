@@ -4,7 +4,6 @@ import numpy as np
 import torch.optim as optim
 from torchsummary import summary
 
-import wandb
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import Constants
 import params
@@ -22,20 +21,17 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
-os.environ["WANDB_MODE"] = "online"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--fastmode', action='store_true', default=False, help='Validate during training pass.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
+parser.add_argument('--epochs', type=int, default=70, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
-parser.add_argument('--train_batch', type=int, default=40, help='Training batch size.')
+parser.add_argument('--train_batch', type=int, default=10, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
-parser.add_argument('--seq', type=float, default=0.3, help='Sequence Identity (Sequence Identity).')
-parser.add_argument("--ont", default='biological_process', type=str, help='Ontology under consideration')
+parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
+parser.add_argument("--ont", default='molecular_function', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -63,7 +59,6 @@ if args.cuda:
 num_class = len(pickle_load(Constants.ROOT + 'go_terms')[f'GO-terms-{args.ont}'])
 
 
-# some_weights = pickle_load(Constants.ROOT + "computed_weights")
 def create_class_weights(cnter):
     class_weight_path = Constants.ROOT + "{}/{}/class_weights".format(kwargs['seq_id'], kwargs['ont'])
     if os.path.exists(class_weight_path + ".pickle"):
@@ -72,7 +67,7 @@ def create_class_weights(cnter):
     else:
         print("Generating class weights")
         go_terms = pickle_load(Constants.ROOT + "/go_terms")
-        terms = go_terms['GO-terms-{}'.format(args.ont)]  # [:600]
+        terms = go_terms['GO-terms-{}'.format(args.ont)]
         class_weights = [cnter[i] for i in terms]
 
     total = sum(class_weights)
@@ -80,13 +75,8 @@ def create_class_weights(cnter):
     class_weights = torch.tensor([total / i for i in class_weights], dtype=torch.float).to(device)
 
     return class_weights
+class_weights = create_class_weights(class_distribution_counter(**kwargs))
 
-
-# class_weights = create_class_weights(class_distribution_counter(**kwargs))
-
-#########################################################
-# Creating training data_bp #
-#########################################################
 
 dataset = load_dataset(root=Constants.ROOT, **kwargs)
 labels = pickle_load(Constants.ROOT + "{}_labels".format(args.ont))
@@ -119,11 +109,8 @@ current_epoch = 1
 min_val_loss = np.Inf
 
 inpu = next(iter(train_dataloader))
-model = GCN4(**ont_kwargs)
+model = GCN(**ont_kwargs)
 
-print(summary(model, (1022, )))
-
-exit()
 
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=ont_kwargs['wd'])
@@ -159,18 +146,26 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 cnts = torch.sum(labs, dim=0)
                 total = torch.sum(cnts)
 
-                # class_weights = torch.tensor([math.log2(total - i) for i in cnts], dtype=torch.float).to(device)
-
-                # class_weights = torch.tensor([total / i if i > 0 else total+10 for i in cnts], dtype=torch.float).to(device)
-
-                # class_weights = torch.tensor([math.log2(total / i) if i > 0 else 1 for i in class_weights],
-                #                              dtype=torch.float).to(device)
-
                 optimizer.zero_grad()
 
                 output = model(data.to(device))
                 loss = criterion(output, labs.to(device))
                 loss = (loss * class_weights).mean()
+
+
+                pom = output.detach().cpu().numpy()
+                bins = np.arange(0.0, 1.1, 0.1)
+                digitized = np.digitize(pom, bins) - 1
+                counts = np.bincount(digitized.flatten(), minlength=len(bins))
+
+                # Display the counts for each range
+                for i, count in enumerate(counts):
+                    lower_bound = round(bins[i], 1)
+                    upper_bound = round(bins[i+1], 1) if i < len(bins) - 1 else 1.0
+                    print(f"Range {lower_bound:.1f} - {upper_bound:.1f}: {count} elements")
+
+
+                exit()
 
                 loss.backward()
                 optimizer.step()
@@ -181,13 +176,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                 epoch_precision += precision_score(y_true=labs, y_pred=out_cpu_5, average="samples")
                 epoch_recall += recall_score(y_true=labs, y_pred=out_cpu_5, average="samples")
                 epoch_f1 += f1_score(y_true=labs, y_pred=out_cpu_5, average="samples")
-
-                # print(precision_score(y_true=labs, y_pred=out_cpu_5, average="samples"),
-                #         recall_score(y_true=labs, y_pred=out_cpu_5, average="samples"),
-                #               f1_score(y_true=labs, y_pred=out_cpu_5, average="samples"), loss)
-
-                # print(epoch_accuracy / (pos + 1), epoch_precision / (pos + 1),
-                #       epoch_recall / (pos + 1), epoch_f1 / (pos + 1), epoch_loss / (pos + 1))
+                
 
             epoch_accuracy = epoch_accuracy / len(loaders['train'])
             epoch_precision = epoch_precision / len(loaders['train'])
@@ -236,17 +225,7 @@ def train(start_epoch, min_val_loss, model, optimizer, criterion, data_loader):
                   'val_f1: {:.4f}'.format(val_f1),
                   'time: {:.4f}s'.format(time.time() - t))
 
-            wandb.log({"train_acc": epoch_accuracy,
-                       "train_loss": epoch_loss,
-                       "precision": epoch_precision,
-                       "recall": epoch_recall,
-                       "f1": epoch_f1,
-                       "val_acc": val_accuracy,
-                       "val_loss": val_loss,
-                       "val_precision": val_precision,
-                       "val_recall": val_recall,
-                       "val_f1": val_f1,
-                       "time": time.time() - t})
+            
 
             checkpoint = {
                 'epoch': epoch,
@@ -279,11 +258,16 @@ loaders = {
 
 ckp_dir = Constants.ROOT + 'checkpoints/model_checkpoint/{}/'.format("cur")
 ckp_pth = ckp_dir + "current_checkpoint.pt"
-ckp_pth = ""
+#ckp_pth = ""
+
+ckp_dir = "/home/fbqc9/PycharmProjects/TFUNClone/TransFun/data/"
+ckp_pth = ckp_dir + "molecular_function.pt"
+
+print(ckp_pth)
 
 if os.path.exists(ckp_pth):
     print("Loading model checkpoint @ {}".format(ckp_pth))
-    model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer)
+    model, optimizer, current_epoch, min_val_loss = load_ckp(ckp_pth, model, optimizer, device="cuda:0")
 else:
     if not os.path.exists(ckp_dir):
         os.makedirs(ckp_dir)
@@ -298,8 +282,7 @@ config = {
     "weight_decay": ont_kwargs['wd']
 }
 
-wandb.init(project="Transfun_ablation", entity='frimpz', config=config,
-           name="{}_{}".format("sum_concat", args.ont))
+
 
 trained_model = train(current_epoch, min_val_loss,
                       model=model, optimizer=optimizer,

@@ -62,7 +62,9 @@ def create_fasta(proteins):
 
 def write_to_file(data, output):
     with open('{}'.format(output), 'w') as fp:
-        fp.write('\n'.join('%s %s %s' % x for x in data))
+        for protein, go_terms in data.items():
+            for go_term, score in go_terms.items():
+                fp.write('%s %s %s\n' % (protein, go_term, score))
 
 
 def generate_embeddings(fasta_path):
@@ -195,29 +197,30 @@ for data in test_dataloader:
         proteins.extend(data['atoms'].protein)
         scores.extend(model(data.to(device)).tolist())
 
+
 assert len(proteins) == len(scores)
 
 goterms = pickle_load('{}/go_terms'.format(args.data_path))[f'GO-terms-{args.ontology}']
 go_graph = obonet.read_obo(open("{}/go-basic.obo".format(args.data_path), 'r'))
 go_set = nx.ancestors(go_graph, FUNC_DICT[args.ontology])
 
-results = []
+
+results = {}
 for protein, score in zip(proteins, scores):
-    protein_terms = []
-    tmp = set()
+    protein_scores = {}
+
     for go_term, _score in zip(goterms, score):
         if _score > args.cut_off:
-            results.append((protein, go_term, _score))
-            protein_terms.append((go_term, _score))
-            tmp.add(go_term)
+            protein_scores[go_term] = max(protein_scores.get(go_term, 0), _score)
 
-    for i, j in protein_terms:
-        ansc = nx.ancestors(go_graph, i).intersection(go_set)
-        # remove those predicted already
-        ansc = ansc.difference(tmp)
-        for _term in ansc:
-            results.append((protein, _term, j))
-            tmp.add(_term)
+
+    for go_term, max_score in list(protein_scores.items()):
+        descendants = nx.descendants(go_graph, go_term).intersection(go_set)
+        for descendant in descendants:
+            protein_scores[descendant] = max(protein_scores.get(descendant, 0), max_score)
+
+    results[protein] = protein_scores
+
 
 print("Writing output to {}".format(args.output))
 write_to_file(results, "{}/{}".format(args.data_path, args.output))
