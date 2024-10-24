@@ -19,6 +19,12 @@ conda activate transfun
 ```
 
 
+## Training dataset
+```
+https://calla.rnet.missouri.edu/rnaminer/transfun_all_data/
+```
+
+
 ## Prediction
 1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files in the input pdb path).
 ```
